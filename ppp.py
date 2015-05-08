@@ -72,6 +72,7 @@ import os
 import glob
 import subprocess
 import shutil
+import swalign
 from Bio import SeqIO
 
 def parse_fasta(infile):
@@ -110,8 +111,8 @@ def DeBarcoder(inputfile_raw_sequences, outputfile_bc_blast, outputfile_bc_trimm
 	
 	bc_blast = open(outputfile_bc_blast, 'rU') # Read the blast result
 	bc_trimmed = open(outputfile_bc_trimmed, 'w') # For writing the de-barcoded sequences
-	bc_leftover = open(Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
-	bc_toomany = open(Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
+	bc_leftover = open(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
+	bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
 
 	seq_withbc_list = [] # A list containing all the seq names that have barcodes
 	seq_withbc_morethanone_list = [] # A list containing all the seq names that have more than one barcode
@@ -173,11 +174,11 @@ def DeBarcoder_dual(inputfile_raw_sequences, outputfile_bc_blast, outputfile_bc_
 	
 	bc_blast = open(outputfile_bc_blast, 'rU') # Read the blast result
 	bc_trimmed = open(outputfile_bc_trimmed, 'w') # For writing the de-barcoded sequences
-	bc_leftover = open(Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
-	bc_onlyF = open(Output_prefix + '_1_trashBin_onlyF_bc.fa', 'w')
-	bc_onlyR = open(Output_prefix + '_1_trashBin_onlyR_bc.fa', 'w')
-	bc_toomany = open(Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
-	bc_invalid = open(Output_prefix + '_1_trashBin_invalid_bc.fa', 'w') # For saving those having FF or RR barcodes
+	bc_leftover = open(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
+	bc_onlyF = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyF_bc.fa', 'w')
+	bc_onlyR = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyR_bc.fa', 'w')
+	bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
+	bc_invalid = open(Output_folder + '/' + Output_prefix + '_1_trashBin_invalid_bc.fa', 'w') # For saving those having FF or RR barcodes
 
 	seq_withbc_list = [] # A list containing all the seq names that have barcodes
 	seq_withoutbc_list = [] # A list containing all the seq names that do not have barcode identified by BLAST
@@ -433,11 +434,11 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for a particular locus as specified by map_locus; returns a dictionary containing taxon-locus seq counts"""		
 	
 	# Blasts each sequence in the file (e.g., BC01.fa) against the reference sequences
-	BlastSeq(filetoannotate, 'blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile)
+	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile)
 	
 	SeqDict = SeqIO.index(filetoannotate, 'fasta') # Reads the sequences as a dict
 
-	refseq_blast = open('blast_refseq_out.txt', 'rU') #read the ref_seq blast result
+	refseq_blast = open(Output_folder + '/blast_refseq_out.txt', 'rU') #read the ref_seq blast result
 	groupsList = []
 	locusList = []
 	LocusTaxonCountDict = {}
@@ -610,6 +611,16 @@ else:
 	except:
 		sys.stderr.write('Error: Cannot open the configuration file\n')
 		sys.exit(usage)
+
+	## Setting up defaults ##
+	mode = 0
+	Multiplex_per_barcode = False
+	Dual_barcode = False
+	SWalign = False
+	Align = 0
+	verbose_level = 0
+
+	## Read-in the parameters and settings ##
 	for line in configuration:
 		line = line.strip(' \t\n\r').replace(' ', '').replace('\t', '').split('#')[0]
 		setting_line = line.find('=')
@@ -680,7 +691,13 @@ else:
 					Multiplex_per_barcode = True
 				else:
 					sys.exit('Error: incorrect setting of Multiplex_per_barcode')	
-				
+			elif setting_name == 'Barcode_removing_module':
+				if setting_argument == '0':
+					SWalign = False
+				elif setting_argument == '1':
+					SWalign = True
+				else:
+					sys.exit('Error: incorrect setting of Barcode_removing_module')						
 
 #### Run ####
 if mode == 0: # Make blast databases
@@ -695,43 +712,44 @@ if mode == 0: # Make blast databases
 	os.chdir('..')
 
 if mode in [0,1]: # Run the full annotating, clustering, etc.
+	## Make output folder ##
+	if os.path.exists(Output_folder): # overwrite existing folder
+		shutil.rmtree(Output_folder)
+	os.makedirs(Output_folder)
+	
 	## Read sequences ##
 	sys.stderr.write('Reading sequences...\n')
-	#with open(raw_sequences, 'r') as infile
 	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
 
 	## Remove barcodes ##
 	barcode_trimmed_file = Output_prefix + '_1_bc_trimmed.fa'
 	if Dual_barcode:
 		sys.stderr.write('Removing dual barcodes...\n')
-		DeBarcoder_dual(raw_sequences, 'blast_barcode_out.txt', barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+		DeBarcoder_dual(raw_sequences, Output_folder + '/' + 'blast_barcode_out.txt', Output_folder + '/' + barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
 	else:
 		sys.stderr.write('Removing barcodes...\n')
 		if not SWalign:
-			DeBarcoder(raw_sequences, 'blast_barcode_out.txt', barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+			DeBarcoder(raw_sequences, Output_folder + '/' + 'blast_barcode_out.txt', Output_folder + '/' + barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
 		else:
-			DeBarcoder_SWalign(SeqDict, barcode_seq_filename, 'SWalign_barcode_out.txt', barcode_trimmed_file, search_range=25)
+			DeBarcoder_SWalign(SeqDict, barcode_seq_filename, Output_folder + '/SWalign_barcode_out.txt', Output_folder + '/' + barcode_trimmed_file, search_range=25)
 
 	## Remove primers ##
 	sys.stderr.write('Removing primers...\n')
 	primer_trimmed_file = Output_prefix + '_2_pr_trimmed.fa'
-	doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = barcode_trimmed_file, OutFile = primer_trimmed_file)
+	doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + barcode_trimmed_file, OutFile = Output_folder + '/' + primer_trimmed_file)
 
 	## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
 	sys.stderr.write('Annotating seqs...\n')
 	toAnnotate = primer_trimmed_file
 	annoFileName = Output_prefix + '_3_annotated.fa'
-	LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = toAnnotate, outFile = annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
+	LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
 
 	## Move into the designated output folder ##
-	if os.path.exists(Output_folder): # overwrite existing folder
-		shutil.rmtree(Output_folder)
-	os.makedirs(Output_folder)
 	os.chdir(Output_folder)
 
 	## Split sequences into separate files/folders for each locus ##
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
-	locusCounts = SplitBy(annotd_seqs_file = "../" + annoFileName, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
+	locusCounts = SplitBy(annotd_seqs_file = annoFileName, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
 
 	## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
 	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
