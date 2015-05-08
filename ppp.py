@@ -105,6 +105,7 @@ def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1
 def DeBarcoder(inputfile_raw_sequences, outputfile_bc_blast, outputfile_bc_trimmed, databasefile, SeqDict):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
 	sequence name, removes the barcode from sequence; returns a list of barcode names"""
+	
 	BlastSeq(inputfile_raw_sequences, outputfile_bc_blast, databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident bitscore qstart qend')
 	
 	bc_blast = open(outputfile_bc_blast, 'rU') # Read the blast result
@@ -261,6 +262,45 @@ def DeBarcoder_dual(inputfile_raw_sequences, outputfile_bc_blast, outputfile_bc_
 	bc_onlyR.close()
 	bc_toomany.close()
 	bc_invalid.close()
+
+def DeBarcoder_SWalign(SeqDict, barcode_seq_filename, outputfile_bc_stat, outputfile_bc_trimmed, search_range=25):
+	"""Use Smith-Waterman local alignment to find barcodes, slow"""
+	sw = swalign.LocalAlignment(swalign.NucleotideScoringMatrix(2, -1))
+
+	barcode_seq = parse_fasta(barcode_seq_filename)
+	out_stat = open(outputfile_bc_stat, 'w')
+	out_trimmed = open(outputfile_bc_trimmed, 'w')
+
+	for each_rec in sorted(SeqDict):
+		seq_to_search_F = str(SeqDict[each_rec].seq)[:search_range]
+		seq_to_search_R = ReverseComplement(str(SeqDict[each_rec].seq))[:search_range]
+		Match = None
+		# Go through each barcode, do alignment, and see if there is a match or not
+		for each_bc in barcode_seq:
+			# Forward
+			aln = sw.align(each_bc.seq, seq_to_search_F)
+			aln_len = aln.r_end - aln.r_pos
+			mismatches = len(each_bc.seq) - aln_len + aln.mismatches
+			if mismatches <= 3:
+				if not Match or aln.score > Match[1].score:
+					Match = (each_bc.id, aln, mismatches, '+', each_bc.id)
+			# Reverse
+			aln = sw.align(each_bc.seq, seq_to_search_R)
+			aln_len = aln.r_end - aln.r_pos
+			mismatches = len(each_bc.seq) - aln_len + aln.mismatches
+			if mismatches <= 3:
+				if not Match or aln.score > Match[1].score:
+					Match = (each_bc.id, aln, mismatches, '-', each_bc.id)
+
+		if Match:
+			#print Match[3], Match[1].dump()
+			out_stat.write(str(each_rec) + '\t' + Match[0] + '\t' + str(Match[1].q_end) + '\t' + str(Match[2]) + '\t' + Match[3] + '\n')
+			new_seq_name = Match[4] + '|' + str(each_rec)
+			if Match[3] == '+':
+				out_trimmed.write('>' + new_seq_name + '\n' + str(SeqDict[each_rec].seq)[Match[1].q_end:] + '\n')
+			else:
+				out_trimmed.write('>' + new_seq_name + '\n' + ReverseComplement(str(SeqDict[each_rec].seq)[Match[1].q_end:]) + '\n')
+	return
 
 def dePrimer(FRprims, InFile, OutFile):
 	'''Attempt to use Usearch to remove primers; not useful as it does not allow indels; stick to cutadapt'''
@@ -667,7 +707,10 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 		DeBarcoder_dual(raw_sequences, 'blast_barcode_out.txt', barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
 	else:
 		sys.stderr.write('Removing barcodes...\n')
-		DeBarcoder(raw_sequences, 'blast_barcode_out.txt', barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+		if not SWalign:
+			DeBarcoder(raw_sequences, 'blast_barcode_out.txt', barcode_trimmed_file, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+		else:
+			DeBarcoder_SWalign(SeqDict, barcode_seq_filename, 'SWalign_barcode_out.txt', barcode_trimmed_file, search_range=25)
 
 	## Remove primers ##
 	sys.stderr.write('Removing primers...\n')

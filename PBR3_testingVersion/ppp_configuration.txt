@@ -10,15 +10,18 @@ Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 
 Dual_barcode			= 0		# 0: Barcodes only one one primer
 								# 1: Barcodes on both primers
+
+Barcode_removing_module	= 0		# 0: Use BLAST
+								# 1: Use Smith-Waterman local alignment
 																											
-Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
+Align					= 1		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
 
 [for Mode 0]
 in_Barcode_seq_file		= barcode_seq_plate1_2_Dep.txt		# Fasta file containing barcode names and sequences; the input for making blast database
 in_RefSeq_seq_file		= refseqs_all.fa					# Fasta file containing reference names and sequences; the input for making blast database
 
 [Executables]
-Usearch 				= usearch7.0		# The name of (or path to) Usearch executable
+Usearch 				= usearch				# The name of (or path to) Usearch executable
 Cutadapt				= cutadapt				# The name of (or path to) Cutadapt executable
 Muscle 					= muscle				# The name of (or path to) Muscle executable
 
@@ -48,6 +51,6 @@ sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for tha
 split_type				= group		# The category used to split the annotated sequences (either "locus", "barcode", "group", "taxon", "taxon-locus", or "locus-taxon". Do not include the quotation marks).
 									# This is only useful for mode 2 (modes 0 & 1 split by locus and then by barcode)
 seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_s1_p0		# Remove this from sequence names
-verbose_level 			= 1			# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
+verbose_level 			= 2			# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
 
 
