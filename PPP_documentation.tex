@@ -1,0 +1,273 @@
+%% Based on the GSI document, so mostly from Swofford's pre-existing styles
+
+%% Remember to compile as XeLaTeX (rather than just LaTeX)
+
+% Simple command-line command to get a word count breakdown: texcount mytexfile.tex
+
+% quick command refs:
+%\textrm   \rmfamily   Roman family
+%\textsf   \sffamily   Sans serif family
+%\texttt   \ttfamily   Typewriter family
+%\textup   \upshape    Upright shape
+%\textit   \itshape    Italic shape
+%\textsl   \slshape    Slanted shape
+%\textsc   \scshape    Small caps shape
+%\textmd   \mdseries   Medium series
+%\textbf   \bfseries   Boldface series
+
+\documentclass[12pt,letterpaper]{article}
+
+\usepackage{fixltx2e}
+\usepackage{textcomp}
+\usepackage{fullpage}
+\usepackage{amsfonts}
+\usepackage{verbatim}
+\usepackage[english]{babel}
+\usepackage{pifont}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{textcase}
+\usepackage{lscape}
+\usepackage{indentfirst}
+\usepackage[normalem]{ulem}
+\usepackage{booktabs}
+%\usepackage{nag}
+\usepackage{xspace}
+
+\usepackage{natbib}
+\bibliographystyle{evolution}
+\bibpunct{(}{)}{;}{a}{}{,}  % this is a citation format command for natbib
+
+\usepackage{float}
+\usepackage{latexsym}
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref} % I think this allows for hyperlinks within the document. E.g., in the table of contents to the respecitive parts of the document
+\usepackage{url}
+%\usepackage{html}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{bm}
+\usepackage{array}
+\usepackage[version=3]{mhchem} % Without the version= this threw up an error when I typeset
+\usepackage{ifthen}
+\usepackage{caption}
+%\usepackage{xcolor}
+\usepackage{amsthm}
+\usepackage{amstext}
+
+\usepackage{newicktree} % only if we're going to be drawing some newick trees
+
+\usepackage[big,sf,bf]{titlesec} % from Dave's PAUP manual -- trying to get the sections to show up in the TOC
+
+%DLS: paralist is a package for some alternative list environments
+\usepackage{paralist}
+
+% DLS: I use the todonotes package to mark up text with 'to do' items.  I add the 'todoin'
+%      command for an inline todo with a different appearance.
+\usepackage{todonotes}
+\newcommand{\todoin}[1]{
+  {\singlespacing\todo[inline, size=\small, caption={2do},backgroundcolor=blue!5!white, bordercolor=blue]{#1}}
+}
+
+%DLS: My standard font stuff...
+\ifxetex
+	\usepackage{xltxtra,xunicode}
+	\defaultfontfeatures{Mapping=tex-text}
+	\setromanfont[Mapping=tex-text]{Palatino}
+	\setsansfont[Scale=MatchLowercase,Mapping=tex-text]{Gill Sans}
+	\setmonofont[Scale=MatchLowercase]{Andale Mono}
+	\usepackage{unicode-math}
+%	\setmathfont{xits-math.otf}
+	\setmathfont{Asana-Math.otf}
+	\newfontfamily\applekeyfont{Lucida Grande}
+	\newcommand\cmdkey[1]{{\applekeyfont \char"2318 #1}}
+	\newcommand\optionkey[1]{{\applekeyfont \char"2325 #1}}
+	\newcommand\shiftkey[1]{{\applekeyfont \char"21E7 #1}}
+	\newcommand\tabkey[0]{{\applekeyfont \char"21E5}}
+	\newcommand\deletekey[0]{{\applekeyfont \char"232B}}
+\else
+	\usepackage[utf8]{inputenc}
+	\usepackage[T1]{fontenc}
+\fi
+
+% Heading formats, from Dave's PAUP manual
+%\titleformat{\chapter}{\Huge\sffamily\bfseries\hfill }{Chapter \fontsize{84}{84} \selectfont \thechapter }{0em}{\\}
+\titleformat{\chapter}
+	{\Huge\sffamily\bfseries\raggedleft}
+	{\fontsize{84}{84} \selectfont \thechapter}  %{\fontsize{84}{84} \selectfont \color{hilite} \thechapter}
+	{0em}
+%	{\\ \color{hilite}}
+        {}
+\titleformat{\section}
+	{\LARGE\sffamily\itshape}  %{\LARGE\sffamily\itshape \color{hilite}}
+	{\thesection}
+	{0.5em}
+	{}
+\titleformat{\subsection}
+	{\Large\itshape}
+	{\thesubsection}
+	{0.5em}
+	{}
+\titleformat{\subsubsection}
+	{\Small\sffamily}
+	{\thesubsubsection}
+	{0.5em}
+	{}
+	
+\newcommand{\figref}[1]{Fig. \ref{#1}}
+
+\linespread{1.66}
+\raggedright
+\setlength{\parindent}{0.5in}
+%\setcounter{secnumdepth}{0} % This command will suppress the section numbers
+
+\pagestyle{empty}
+
+%-------------- Formatting Table of Contents --------------
+\setcounter{tocdepth}{5} % controls how "deep" the table of contents goes
+
+
+
+
+%%%%%%%%%%% Title Page Stuff
+
+\begin{document}
+\begin{flushright}
+Version dated: \today
+\end{flushright}
+\bigskip
+
+\noindent RH: PPP or PURR or PUSS or PUS or..:
+\bigskip
+\medskip
+
+\begin{center}
+\noindent{\Large \bf PPP/PUSS/Whatever v0.1 Manual}\\
+\bigskip
+\noindent {\normalsize \bf Carl J. Rothfels$^1$, and Fay-Wei Li$^{1,2}$}\\
+\noindent {\small \it
+$^1$University Herbarium and Department of Integrative Biology, University of California, Berkeley, California, 94720-2465\\
+$^2$Department of Biology, Duke University, Durham, NC 27708}\\
+\end{center}
+\medskip
+
+\noindent{\bf Corresponding author:} Carl J. Rothfels, University of California, Berkeley, California, USA; E-mail: crothfels@yahoo.ca\\
+\vspace{0.5in}
+
+
+\vspace{0.5in}
+\noindent \textbf{Keywords:} polyploidy, next-generation sequencing, PacBio, Pacific BioSciences, reticulate evolution, multi-labeled gene trees, 
+
+
+
+%%%%%%%%%%% TOC
+\tableofcontents
+%\listoffigures
+%\listoftables
+
+
+%%%%%%%%%%% Main document
+\newpage
+\section{TODO list}
+\todoin{
+\begin{compactitem}
+\item Check into usearch 8
+\item Reformatting reference sequences and maps
+\item Carl will continue to look at the data
+\item Have it export the alignments in nexus format
+\item Carl to create rough outline of documentation file. \textbf{DONE! \textit{ha.}}
+\end{compactitem}
+}
+
+\bigskip\section{Introduction}
+\subsection{Background} 
+Discussion of the issues with homeologs and paralogs, and the utility of 
+multilabeled genetrees. Issues with cloning. Some terminolog, etc.
+Quick intro to what PPP (to be renamed) does.
+
+\subsection{PPP workflow}
+Make a flowchart? Describe the things that PPP does.
+Describe how to call it.
+
+\bigskip\section{Dependencies} %Describe how to install all of these
+\subsection{Python}
+
+\subsection{BioPython}
+
+\subsection{Blast}
+
+\subsection{USEARCH}
+
+\subsection{MUSCLE}
+
+\subsection{etc}
+
+\bigskip\section{Input data}
+Description of how to generate the sorts of data that PPP can use.
+
+\bigskip\section{Supporting files}
+\subsection{Configuration file}
+The configuration file is a text file... blah blah, where the user can
+set the following options:
+
+\subsubsection{option1} % This seems to work, although the compiler complains
+There are four options for \textbf{mode} ... 
+
+\subsubsection{option2}
+
+\subsubsection{option3}
+
+\subsection{Map files}
+
+\subsection{Primer file}
+
+\subsection{Barcode file}
+
+\subsection{Reference sequences}
+
+\bigskip\section{Output files}
+Describe each of the outputs, and what they contain.
+
+\subsection{unmatched.fa}
+
+\bigskip\section{Troubleshooting}
+\subsection{Common errors}
+\subsection{Error messages}
+
+
+%%%%%%%%% Acknowledgments
+\bigskip\section{Acknowledgements}
+We thank .... NESCent short-term scholar support.. 
+
+%
+%Tree diagrams were
+%produced with the \textsf{newicktree} \LaTeX package \citep{Savva:2004}.
+%
+%\newpage
+%
+%Example from \citet{Savva:2004}:
+%\begin{newicktree}
+%\drawtree{((My:1,first:1.5):0.5,(\sf newicktree:2,tree!:2.5):0.5):0.5;}
+%\end{newicktree}
+%
+%
+%
+%\pagebreak
+%
+%---------------------------------bibliography------------------------------------
+
+
+\bibliography{PPP_documentation}
+
+%------------------------------------figures------------------------------------
+%\pagebreak
+
+%\begin{figure} %[h]
+%\includegraphics[width=0.9\textwidth]{figures/fig_WithOutgroup.pdf}
+%%\missingfigure[figwidth=6cm]{Sampling \ldots}
+%\caption{Effect of sampling regime on ....}
+%\label{fig:w_outgroup}
+%\end{figure}
+
+\end{document}
