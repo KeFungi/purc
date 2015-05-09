@@ -10,6 +10,9 @@ Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 
 Dual_barcode			= 0		# 0: Barcodes only one one primer
 								# 1: Barcodes on both primers
+
+Barcode_removing_module	= 0		# 0: Use BLAST
+								# 1: Use Smith-Waterman local alignment
 																											
 Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
 
@@ -18,7 +21,7 @@ in_Barcode_seq_file		= barcode_seq_plate1_2_Dep.txt		# Fasta file containing bar
 in_RefSeq_seq_file		= refseqs_all.fa					# Fasta file containing reference names and sequences; the input for making blast database
 
 [Executables]
-Usearch 				= usearch7.0		# The name of (or path to) Usearch executable
+Usearch 				= usearch				# The name of (or path to) Usearch executable
 Cutadapt				= cutadapt				# The name of (or path to) Cutadapt executable
 Muscle 					= muscle				# The name of (or path to) Muscle executable
 
