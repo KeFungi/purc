@@ -99,15 +99,50 @@ def makeBlastDB(inFileName, outDBname): #FWL do we need to include instructions 
 
 def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc nident mismatch length pident bitscore'):	
 	"""Calls blastn, the output format can be changed by outfmt. Requires the blast database to be made already"""
-	blastn_cLine = "blastn -query %s -task blastn -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, databasefile, outputfile, evalue, max_target, outfmt)
+	blastn_cLine = "blastn -query %s -task blastn -num_threads 8 -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, databasefile, outputfile, evalue, max_target, outfmt)
 	os.popen(blastn_cLine)	
 	return
+
+def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict):
+	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	
+	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result
+	chimeras = open(outputfile_chimeras, 'w')
+	non_chimeras = open(outputfile_goodSeqs, 'w')
+
+	loci_info_dict = {}
+	chimera_dict = {}
+	
+	for each_rec in chimera_blast:
+		each_rec = each_rec.strip('\n')
+		seq_name = each_rec.split('\t')[0]
+		
+		if seq_name not in chimera_dict.keys():
+			locus_name = each_rec.split('\t')[1].split('_')[0]
+			locus_start = each_rec.split('\t')[5]
+			locus_end = each_rec.split('\t')[6]
+			if seq_name not in loci_info_dict.keys():
+				loci_info_dict[seq_name] = [locus_name, locus_start, locus_end]
+
+			else:
+				if locus_name != loci_info_dict[seq_name][0]:
+					chimera_dict[seq_name] = [locus_name, loci_info_dict[seq_name][0]]
+
+	for each_chimera in chimera_dict:
+		new_seq_name = chimera_dict[each_chimera][0] + '|' + chimera_dict[each_chimera][1] + '|' + each_chimera
+		chimeras.write('>' + new_seq_name + '\n' + str(SeqDict[each_chimera].seq) + '\n')
+		#del SeqDict[each_chimera]
+	non_chimeras_list = list(set(list(SeqDict.keys())) - set(list(chimera_dict.keys())))
+	for each_non_chimera in non_chimeras_list:
+		non_chimeras.write('>' + each_non_chimera + '\n' + str(SeqDict[each_non_chimera].seq) + '\n')
+
+	return chimera_dict
 	
 def DeBarcoder(inputfile_raw_sequences, outputfile_bc_blast, outputfile_bc_trimmed, databasefile, SeqDict):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
 	sequence name, removes the barcode from sequence; returns a list of barcode names"""
 	
-	BlastSeq(inputfile_raw_sequences, outputfile_bc_blast, databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident bitscore qstart qend')
+	BlastSeq(inputfile_raw_sequences, outputfile_bc_blast, databasefile, evalue=1, max_target=5, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
 	bc_blast = open(outputfile_bc_blast, 'rU') # Read the blast result
 	bc_trimmed = open(outputfile_bc_trimmed, 'w') # For writing the de-barcoded sequences
@@ -434,7 +469,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for a particular locus as specified by map_locus; returns a dictionary containing taxon-locus seq counts"""		
 	
 	# Blasts each sequence in the file (e.g., BC01.fa) against the reference sequences
-	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile)
+	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
 	SeqDict = SeqIO.index(filetoannotate, 'fasta') # Reads the sequences as a dict
 
@@ -721,6 +756,15 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	sys.stderr.write('Reading sequences...\n')
 	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
 
+	## Check chimeras ##
+	sys.stderr.write('Checking chimeric sequences...\n')
+	chimeras_file = Output_prefix + '_0_chimeras.fa'
+	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
+	chimera_list = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
+	raw_sequences = Output_folder + '/' + non_chimeras_file
+	print len(chimera_list)
+	SeqDict = SeqIO.index(raw_sequences, 'fasta')
+	
 	## Remove barcodes ##
 	barcode_trimmed_file = Output_prefix + '_1_bc_trimmed.fa'
 	if Dual_barcode:
