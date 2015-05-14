@@ -80,6 +80,13 @@ def parse_fasta(infile):
 	AllSeq = SeqIO.parse(infile, 'fasta')
 	return [i for i in AllSeq] 
 
+def count_seq_from_fasta(infile):
+	cmdLine = "grep '>' %s | wc -w" % infile
+	process = subprocess.Popen(cmdLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	(out, err) = process.communicate()	
+	out = out.strip('\n').replace(' ', '')
+	return out
+
 def ReverseComplement(seq):
 	"""Returns reverse complement sequence, ignores gaps"""
 	seq = seq.replace(' ','') # Remove spaces
@@ -131,7 +138,6 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 	for each_chimera in chimera_dict:
 		new_seq_name = chimera_dict[each_chimera][0] + '|' + chimera_dict[each_chimera][1] + '|' + each_chimera
 		chimeras.write('>' + new_seq_name + '\n' + str(SeqDict[each_chimera].seq) + '\n')
-		#del SeqDict[each_chimera]
 	non_chimeras_list = list(set(list(SeqDict.keys())) - set(list(chimera_dict.keys())))
 	for each_non_chimera in non_chimeras_list:
 		non_chimeras.write('>' + each_non_chimera + '\n' + str(SeqDict[each_non_chimera].seq) + '\n')
@@ -225,14 +231,14 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 	F_ends.close()
 	R_ends.close()
 	BlastSeq('tempF', Output_folder + '/blast_barcodeF_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
-	BlastSeq('tempR', Output_folder + '/blast_barcodeF_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	BlastSeq('tempR', Output_folder + '/blast_barcodeR_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 
 	seq_withbc_list = [] # A list containing all the seq names that have barcodes
 	seq_withbc_morethanone_list = [] # A list containing all the seq names that have more than one barcode
 	seq_withoutbc_list = [] # A list containing all the seq names that do not have barcode identified by BLAST
 	barcode_info_dict = {} # {seq_name1: [BC01, 0, 12], seq_name2: [BC08, 0, 12]}; barcode_info_dict[seq_name] = [barcode_name, barcode_start_posi, barcode_end_posi]
 
-	bc_blast_F = open('blast_barcodeF_out.txt', 'rU')
+	bc_blast_F = open(Output_folder + '/blast_barcodeF_out.txt', 'rU')
 	for each_rec in bc_blast_F:
 		each_rec = each_rec.strip('\n')
 		seq_name = each_rec.split('\t')[0]
@@ -247,7 +253,7 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 			seq_withbc_list.remove(seq_name)
 			seq_withbc_morethanone_list.append(seq_name)
 
-	bc_blast_R = open('blast_barcodeR_out.txt', 'rU')
+	bc_blast_R = open(Output_folder + '/blast_barcodeR_out.txt', 'rU')
 	for each_rec in bc_blast_R:
 		each_rec = each_rec.strip('\n')
 		seq_name = each_rec.split('\t')[0]
@@ -433,7 +439,7 @@ def dePrimer(FRprims, InFile, OutFile):
 	#usearch -search_pcr greengenes.fa -db 16s_primers.fa -strand both -maxdiffs 3 -minamp 30 -maxamp 2000 -pcrout hits.txt -ampout amplicons.fasta
 	usearch_cline = "%s -search_pcr %s -db %s -strand both -maxdiffs 3 -minamp 30 -maxamp 2000 -pcrout hits.txt -ampout %s" % (Usearch, InFile, FRprims, OutFile)
 
-def doCutAdapt(Fprims, Rprims, InFile, OutFile): 
+def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50): 
 	'''This function removes the primers using the Cutadapt program. Replaces the DePrimer function'''
 	
 	# Build the forward and reverse primer portions of the cutadapt command lines by adding each primer in turn
@@ -454,7 +460,7 @@ def doCutAdapt(Fprims, Rprims, InFile, OutFile):
 		R_cutadapt_cline = R_cutadapt_cline + '-a ' + ReverseComplement(each_primer) + ' '
 
 	# Build the complete cutadapt command line
-	cutadapt_cline = '%s -O 15 -e 0.25 -n 2 %s %s %s > %s' % (Cutadapt, F_cutadapt_cline, R_cutadapt_cline, InFile, OutFile)
+	cutadapt_cline = '%s -O 15 -e 0.25 -n 2 -m %s %s %s %s > %s' % (Cutadapt, minimum_len, F_cutadapt_cline, R_cutadapt_cline, InFile, OutFile)
 	# -O: Minimum overlap length. If the overlap between the read and the primer is shorter than -O, the read is not modified.
 	# -e: Maximum allowed error rate (no. of errors divided by the length of the matching region)
 	# -n: Try to remove primers at most -n times.
@@ -583,8 +589,8 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	count = 0
 	previous_seq_name = ''
 	for each_rec in refseq_blast:
-		count += 1
 		
+		#count += 1
 		#if verbose_level in [1,2]:
 		#	if count == int(len(SeqDict)/4):
 		#		sys.stderr.write( "One quarter done\n" ) # FWL; TODO; how to get this to print as the function proceeds, rather than just all at the end?
@@ -630,7 +636,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			previous_seq_name = new_seq_name
 		except:
 			print "The combo", key, "wasn't found in", locus_name
-			print "(currently trying to find a match for", seq_name, ")\n"
+			#print "(currently trying to find a match for", seq_name, ")\n"
 			if Multiplex_perBC_flag:
 				new_seq_name = locus_name + '|' + group_name + '|' + seq_name.replace(seq_name_toErase, '')
 			else:
@@ -644,7 +650,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	no_matches.close()
 
 	if verbose_level in [1, 2]:
-		print "The groups found are ", groupsList, "\nAnd the loci found are ", locusList, "\n"
+		print "The groups found are ", ', '.join(groupsList), "\nAnd the loci found are ", ', '.join(locusList), "\n"
 	
 	return LocusTaxonCountDict #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
 
@@ -739,7 +745,7 @@ else:
 
 	## Setting up defaults ##
 	mode = 0
-	Check_chimeras = True
+	Check_chimeras = False
 	Multiplex_per_barcode = False
 	Dual_barcode = False
 	Search_ends_only = False
@@ -818,16 +824,22 @@ else:
 					Multiplex_per_barcode = True
 				else:
 					sys.exit('Error: incorrect setting of Multiplex_per_barcode')	
-			elif setting_name == 'Barcode_removing_module':
+			elif setting_name == 'Barcode_detection':
 				if setting_argument == '0':
-					SWalign = False
+					Search_ends_only = False
 				elif setting_argument == '1':
-					SWalign = True
+					Search_ends_only = True
 				else:
-					sys.exit('Error: incorrect setting of Barcode_removing_module')						
-
+					sys.exit('Error: incorrect setting of Barcode_detection')						
+			elif setting_name == 'Recycle_no_barcoded_seq':
+				if setting_argument == '0':
+					Recycle_bc = False
+				elif setting_argument == '1':
+					Recycle_bc = True
+				else:
+					sys.exit('Error: incorrect setting of Recycle_no_barcoded_seq')
 #### Run ####
-if mode == 0: # Make blast databases
+if mode in [0,1]: # Make blast databases and read the raw sequences
 	if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 		shutil.rmtree(BLAST_DBs_folder)
 	os.makedirs(BLAST_DBs_folder)
@@ -837,25 +849,30 @@ if mode == 0: # Make blast databases
 	#if Dual_barcode:
 		#makeBlastDB('../' + barcode_seq_filename2, barcode_databasefile + '2')
 	os.chdir('..')
+	
+	## Read sequences ##
+	sys.stderr.write('Reading sequences...\n')
+	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
+	count_total_input_sequences = len(SeqDict)
+	sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
+	#print total_input_sequences
+
+if mode == 0: # QC mode
+	## Check chimeras ##
+	sys.stderr.write('Checking chimeric sequences...\n')
+	chimeras_file = Output_prefix + '_0_chimeras.fa'
+	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
+	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
+	count_chimierc_sequences = len(chimera_dict)
+	raw_sequences = Output_folder + '/' + non_chimeras_file
+	SeqDict = SeqIO.index(raw_sequences, 'fasta')
+	sys.stderr.write('\t' + str(count_chimierc_sequences) + ' chimeric sequences found\n')
 
 if mode in [0,1]: # Run the full annotating, clustering, etc.
 	## Make output folder ##
 	if os.path.exists(Output_folder): # overwrite existing folder
 		shutil.rmtree(Output_folder)
 	os.makedirs(Output_folder)
-	
-	## Read sequences ##
-	sys.stderr.write('Reading sequences...\n')
-	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
-
-	## Check chimeras ##
-	if Check_chimeras:
-		sys.stderr.write('Checking chimeric sequences...\n')
-		chimeras_file = Output_prefix + '_0_chimeras.fa'
-		non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
-		chimera_list = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
-		raw_sequences = Output_folder + '/' + non_chimeras_file
-		SeqDict = SeqIO.index(raw_sequences, 'fasta')
 	
 	## Remove barcodes ##
 	if Dual_barcode:
@@ -867,23 +884,35 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 			DeBarcoder(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict, Output_folder, Output_prefix)
 		else:
 			DeBarcoder_ends(SeqDict, BLAST_DBs_folder + '/' + barcode_databasefile, Output_folder, Output_prefix, search_range=25)
+	count_seq_w_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa')
+	count_seq_wo_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa')
+	count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa')
+	sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have barcode\n')
+	sys.stderr.write('\t' + str(count_seq_wo_bc) + ' sequences have no barcode\n')
+	sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+
 	if Recycle_bc:
 		sys.stderr.write('Recycling...\n')
 		SeqDict_no_bc = SeqIO.index(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'fasta') # Read in the raw sequences as dictionary, using biopython's function
-		seq_recycled_count = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
-		print seq_recycled_count, 'sequences recycled'
-		#shutil.copyfile(open(Output_folder + '/' + Output_prefix + '_1_bc_SWalign_trimmed.fa','rb'), open(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', 'wb'))
-
+		count_seq_recycled = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
+		sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
+	
 	## Remove primers ##
 	sys.stderr.write('Removing primers...\n')
 	primer_trimmed_file = Output_prefix + '_2_pr_trimmed.fa'
 	doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', OutFile = Output_folder + '/' + primer_trimmed_file)
+	count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_pr_trimmed.fa')
+	sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
 
 	## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
 	sys.stderr.write('Annotating seqs...\n')
 	toAnnotate = primer_trimmed_file
 	annoFileName = Output_prefix + '_3_annotated.fa'
 	LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
+	count_seq_annotated = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_annotated.fa')
+	count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa')
+	sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
+	sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
 
 	## Move into the designated output folder ##
 	os.chdir(Output_folder)
@@ -992,6 +1021,15 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 
 	#### Producing a summary #### 
 	count_output = open('counts.xls', 'w')
+	count_output.write('Total input sequences:' + str(count_total_input_sequences) + '\n')
+	count_output.write('Chimeric sequences:' + str(count_chimierc_sequences) + '\n')
+	count_output.write('Sequences with barcodes:' + str(count_seq_w_bc) + '\n')
+	count_output.write('Sequences without barcodes:' + str(count_seq_wo_bc) + '\n')
+	count_output.write('Sequences with too many barcodes:' + str(count_seq_w_toomany_bc) + '\n')
+	count_output.write('Sequences annotated:' + str(count_seq_annotated) + '\n')
+	count_output.write('Sequences that cannot be classified:' + str(count_seq_unclassifiable) + '\n')
+
+	
 	print "\n**Raw reads per accession per locus**"
 	count_output.write('**Raw reads per accession per locus**\n')
 	taxon_list =[]

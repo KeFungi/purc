@@ -1,6 +1,6 @@
 [PPP_Configuration]
-Mode					= 0		# 0: Construct blast database for barcodes and reference sequences, and then "full run"
-								# 1: Full run, assuming blast database exists
+Mode					= 0		# 0: QC and then full run
+								# 1: Full run
 								# 2: Just split. PPP will take the (already annotated) Input_sequence_file and split it up by split_type
 								# 3: Just clustering, etc. PPP will take the file(s) in Output_folder and run clustering and chimera-killing on them		
 									#NOTE: for mode 3, ppp must be called from the folder that has Output_folder already in it (and the files need to already be in Output_folder)
@@ -8,11 +8,14 @@ Mode					= 0		# 0: Construct blast database for barcodes and reference sequences
 Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 								# 1: Each barcode contains multiple samples
 
-Dual_barcode			= 0		# 0: Barcodes only one one primer
+Dual_barcode			= 0		# 0: Barcodes only on one primer
 								# 1: Barcodes on both primers
 
-Barcode_removing_module	= 0		# 0: Use BLAST
-								# 1: Use Smith-Waterman local alignment
+Barcode_detection		= 0		# 0: Search barcode in entire sequences; will produce "ErrMidBC" flag if barcodes are not at the ends of the sequence 
+								# 1: Search barcode only at the ends of sequences
+
+Recycle_no_barcoded_seq	= 0		# 0: Do not recycle
+								# 1: Use Smith-Waterman local alignment to find barcodes in those sequences that BLAST failed to detect barcode
 																											
 Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
 
