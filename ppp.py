@@ -586,8 +586,9 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	#if verbose_level in [1,2]:
 	#	sys.stderr.write("Annotating " + str(len(SeqDict)) + " records.\n")
 
-	count = 0
-	previous_seq_name = ''
+	#count = 0
+	#previous_seq_name = ''
+	seq_processed_list = []
 	for each_rec in refseq_blast:
 		
 		#count += 1
@@ -627,13 +628,13 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			else:
 				new_seq_name = taxon_name + '|' + locus_name + '|' + seq_name.replace(seq_name_toErase, '')
 				
-			if new_seq_name != previous_seq_name:
+			if seq_name not in seq_processed_list:
 				annotated_seqs.write('>' + new_seq_name + '\n' + str(SeqDict[seq_name].seq) + '\n')
 				try:
 					LocusTaxonCountDict[taxon_name, locus_name] += 1 #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
 				except:
 					LocusTaxonCountDict[taxon_name, locus_name] = 1 #initiate the key and give count = 1
-			previous_seq_name = new_seq_name
+				seq_processed_list.append(seq_name)
 		except:
 			print "The combo", key, "wasn't found in", locus_name
 			#print "(currently trying to find a match for", seq_name, ")\n"
@@ -642,9 +643,14 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			else:
 				new_seq_name = locus_name + '|' + seq_name.replace(seq_name_toErase, '')
 			no_matches.write('>' + new_seq_name + '\n' + str(SeqDict[seq_name].seq) + '\n')
-			# TODO; FWL; need to figure out what these are/where they're coming from
+			seq_processed_list.append(seq_name)
 			continue
-		
+	
+	seq_no_hit = list(set(SeqDict.keys()) - set(seq_processed_list))
+	print len(seq_no_hit)
+	for each_rec in seq_no_hit:
+		no_matches.write('>' + each_rec + '\n' + str(SeqDict[each_rec].seq) + '\n')
+	
 	refseq_blast.close()
 	annotated_seqs.close()
 	no_matches.close()
@@ -863,10 +869,10 @@ if mode == 0: # QC mode
 	chimeras_file = Output_prefix + '_0_chimeras.fa'
 	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
 	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
-	count_chimierc_sequences = len(chimera_dict)
+	count_chimeric_sequences = len(chimera_dict)
 	raw_sequences = Output_folder + '/' + non_chimeras_file
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
-	sys.stderr.write('\t' + str(count_chimierc_sequences) + ' chimeric sequences found\n')
+	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' chimeric sequences found\n')
 
 if mode in [0,1]: # Run the full annotating, clustering, etc.
 	## Make output folder ##
@@ -1021,13 +1027,14 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 
 	#### Producing a summary #### 
 	count_output = open('counts.xls', 'w')
-	count_output.write('Total input sequences:' + str(count_total_input_sequences) + '\n')
-	count_output.write('Chimeric sequences:' + str(count_chimierc_sequences) + '\n')
-	count_output.write('Sequences with barcodes:' + str(count_seq_w_bc) + '\n')
-	count_output.write('Sequences without barcodes:' + str(count_seq_wo_bc) + '\n')
-	count_output.write('Sequences with too many barcodes:' + str(count_seq_w_toomany_bc) + '\n')
-	count_output.write('Sequences annotated:' + str(count_seq_annotated) + '\n')
-	count_output.write('Sequences that cannot be classified:' + str(count_seq_unclassifiable) + '\n')
+	count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
+	if mode == 0:
+		count_output.write('Chimeric sequences:\t' + str(count_chimeric_sequences) + '\n')
+	count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+	count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
+	count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+	count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
+	count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
 
 	
 	print "\n**Raw reads per accession per locus**"
