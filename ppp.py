@@ -125,7 +125,7 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 		seq_name = each_rec.split('\t')[0]
 		
 		if seq_name not in chimera_dict.keys():
-			locus_name = each_rec.split('\t')[1].split('_')[0]
+			locus_name = each_rec.split('\t')[1].split('_')[0].upper() #upper to avoid "ApP" != "APP" issue
 			locus_start = each_rec.split('\t')[5]
 			locus_end = each_rec.split('\t')[6]
 			if seq_name not in loci_info_dict.keys():
@@ -535,7 +535,7 @@ def makeMapDict(mapping_file, locus, Multiplex_perBC_flag=True, DualBC_flag=Fals
 		for each_rec in map:
 			each_rec = each_rec.strip('\n')
 			map_barcode_name = each_rec.split('\t')[0]
-			map_group_name = each_rec.split('\t')[1]
+			map_group_name = each_rec.split('\t')[1].upper()
 			map_taxon_name = each_rec.split('\t')[2]
 			key = map_barcode_name + '_' + map_group_name #BC01_A, BC01_B, BC010_C...
 			MapDict[key] = map_taxon_name
@@ -578,7 +578,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	# each seq to a particular locus and taxon
 	dictOfMapDicts = {} # A dictionary to store all of the map dictionaries
 	for each_file, each_locus in zip(mapping_file_list, locus_list): 
-		dictOfMapDicts[each_locus] = makeMapDict(each_file, each_locus, Multiplex_perBC_flag, DualBC_flag) # Note the Multiplex_perBC and DualBC flags (as True/False)
+		dictOfMapDicts[each_locus.upper()] = makeMapDict(each_file, each_locus, Multiplex_perBC_flag, DualBC_flag) # Note the Multiplex_perBC and DualBC flags (as True/False)
 
 	annotated_seqs = open(outFile, "w")
 	no_matches = open(failsFile, "w")
@@ -606,8 +606,8 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 				
 		# Get the key for retrieving taxon_name in dictOfMapDicts[locus_name]
 		if Multiplex_perBC_flag:
-			group_name = refseq_name.split('_')[1][-1:] # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
-			locus_name = refseq_name.split('_')[0] # The names are in the format ">ApP_grA__otherstuff". I.e., >Locus_group_otherstuff
+			group_name = refseq_name.split('_')[1][-1:].upper() # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
+			locus_name = refseq_name.split('_')[0].upper() # The names are in the format ">ApP_grA__otherstuff". I.e., >Locus_group_otherstuff
 			key = seq_name.split('|')[0] + '_' + group_name # Grabbing the barcode from the source seq, and the group from the matching ref seq.
 			#i.e., gets the unique identifier that can link to a specific sample; i.e. BC01_A, BC01_B, BC01_C...
 			if not group_name in groupsList: #keeping track of which groups are found, as a way of potentially diagnosing errors
@@ -616,7 +616,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 				locusList.append(locus_name)	
 		else:
 			key = seq_name.split('|')[0] # Grabbing the barcode from the source seq
-			locus_name = locus_list[0]
+			locus_name = locus_list[0].upper()
 			#i.e., gets the unique barcode that can link to a specific sample; i.e. BC01, BC02, BC03...		
 		
 		try: #use try/except to avoid the error when the key is not present in MapDict				
@@ -861,7 +861,11 @@ if mode in [0,1]: # Make blast databases and read the raw sequences
 	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
 	count_total_input_sequences = len(SeqDict)
 	sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
-	#print total_input_sequences
+
+	## Make output folder ##
+	if os.path.exists(Output_folder): # overwrite existing folder
+		shutil.rmtree(Output_folder)
+	os.makedirs(Output_folder)
 
 if mode == 0: # QC mode
 	## Check chimeras ##
@@ -874,12 +878,7 @@ if mode == 0: # QC mode
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
 	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' chimeric sequences found\n')
 
-if mode in [0,1]: # Run the full annotating, clustering, etc.
-	## Make output folder ##
-	if os.path.exists(Output_folder): # overwrite existing folder
-		shutil.rmtree(Output_folder)
-	os.makedirs(Output_folder)
-	
+if mode in [0,1]: # Run the full annotating, clustering, etc.	
 	## Remove barcodes ##
 	if Dual_barcode:
 		sys.stderr.write('Removing dual barcodes...\n')
@@ -1105,11 +1104,12 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 			outFile = muscleIt(file, verbose_level)
 			
 if mode == 2: # Just split the seqs
-	print "The file to be split is ", raw_sequences, "\n"
+	annoFileName = Output_prefix + '_3_annotated.fa'
+	print "The file to be split is ", annoFileName, "\n"
 	print "And it should be split by ", split_type
-	os.mkdir(Output_folder)
+	#os.mkdir(Output_folder)
 	os.chdir(Output_folder)
-	splits_count_dict = SplitBy(annotd_seqs_file = "../"+raw_sequences, split_by = split_type, Multiplex_perBC_flag = Multiplex_per_barcode)
+	splits_count_dict = SplitBy(annotd_seqs_file = annoFileName, split_by = split_type, Multiplex_perBC_flag = Multiplex_per_barcode)
 	os.chdir("..")
 	if verbose_level == 3:
 		print "Counts: "
