@@ -121,9 +121,8 @@ def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1
 	os.popen(blastn_cLine)	
 	return
 
-# This function looks for chimeras that are formed _between_ multiple loci (ie, two loci got concatenated together in the pacbio library prep)
-def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict):
-	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict, SplitChimera=False):
+	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
 	
 	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result
 	chimeras = open(outputfile_chimeras, 'w')
@@ -135,24 +134,61 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 	for each_rec in chimera_blast:
 		each_rec = each_rec.strip('\n')
 		seq_name = each_rec.split('\t')[0]
-		
+		First = True
 		if seq_name not in chimera_dict.keys():
 			locus_name = each_rec.split('\t')[1].split('_')[0].upper() #upper to avoid "ApP" != "APP" issue
 			locus_start = each_rec.split('\t')[5]
 			locus_end = each_rec.split('\t')[6]
+			locus_direction = each_rec.split('\t')[-1]
 			if seq_name not in loci_info_dict.keys():
-				loci_info_dict[seq_name] = [locus_name, locus_start, locus_end]
+				loci_info_dict[seq_name] = [(locus_name, int(locus_start), int(locus_end), locus_direction)]
 
 			else:
-				if locus_name != loci_info_dict[seq_name][0]:
-					chimera_dict[seq_name] = [locus_name, loci_info_dict[seq_name][0]]
+				if locus_name != loci_info_dict[seq_name][0][0]:
+					chimera_dict[seq_name] = [locus_name, loci_info_dict[seq_name][0][0]]
+					if First:
+						loci_info_dict[seq_name].append((locus_name, int(locus_start), int(locus_end), locus_direction))
+						First = False
 
-	for each_chimera in chimera_dict:
-		new_seq_name = chimera_dict[each_chimera][0] + '|' + chimera_dict[each_chimera][1] + '|' + each_chimera
-		chimeras.write('>' + new_seq_name + '\n' + str(SeqDict[each_chimera].seq) + '\n')
 	non_chimeras_list = list(set(list(SeqDict.keys())) - set(list(chimera_dict.keys())))
 	for each_non_chimera in non_chimeras_list:
 		non_chimeras.write('>' + each_non_chimera + '\n' + str(SeqDict[each_non_chimera].seq) + '\n')
+
+	if SplitChimera:
+		for each_chimera in chimera_dict:
+			loci_info_list = sorted(loci_info_dict[each_chimera], key=lambda LIST: LIST[1]) # loci_info_list as [('IBR', 41, 906, 'plus'), ('APP', 956, 1920, 'minus')]
+
+			new_seq_name1 = each_chimera + 'ERRchimera_' + loci_info_list[0][0] + 'of' + loci_info_list[0][0] + '+' + loci_info_list[1][0]
+			new_seq_name2 = each_chimera + 'ERRchimera_' + loci_info_list[1][0] + 'of' + loci_info_list[0][0] + '+' + loci_info_list[1][0]
+			
+			if loci_info_list[0][3] == 'plus' and loci_info_list[1][3] == 'plus':
+				locus_seq1 = str(SeqDict[each_chimera].seq)[:loci_info_list[0][2]]
+				locus_seq2 = str(SeqDict[each_chimera].seq)[loci_info_list[0][2]:]
+
+			elif loci_info_list[0][3] == 'plus' and loci_info_list[1][3] == 'minus':
+				locus_seq1 = str(SeqDict[each_chimera].seq)[:loci_info_list[0][2]]
+				locus_seq2 = str(SeqDict[each_chimera].seq)[loci_info_list[0][2]:]
+			
+			elif loci_info_list[0][3] == 'minus' and loci_info_list[1][3] == 'plus':
+				midpoint = int((loci_info_list[0][2] + loci_info_list[1][1]) / 2)
+				locus_seq1 = str(SeqDict[each_chimera].seq)[:midpoint]
+				locus_seq2 = str(SeqDict[each_chimera].seq)[midpoint:]
+
+			elif loci_info_list[0][3] == 'minus' and loci_info_list[1][3] == 'minus':
+				locus_seq1 = str(SeqDict[each_chimera].seq)[:loci_info_list[1][1]]
+				locus_seq2 = str(SeqDict[each_chimera].seq)[loci_info_list[1][1]:]
+
+			#for each_locus in sorted(loci_info_dict[each_chimera], key=lambda list: list[1]): #each_locus as (locus_name, start_posi, end_posi)
+				#print each_locus
+				#new_seq_name = each_chimera + 'ERRchimera_' + each_locus[0] + 'of' + chimera_dict[each_chimera][0] + '+' + chimera_dict[each_chimera][1]
+				#locus_seq = str(SeqDict[each_chimera].seq)[int(each_locus[1]):int(each_locus[2])]
+			non_chimeras.write('>' + new_seq_name1 + '\n' + locus_seq1 + '\n')
+			non_chimeras.write('>' + new_seq_name2 + '\n' + locus_seq2 + '\n')
+
+	for each_chimera in chimera_dict:
+		new_seq_name = each_chimera + 'ERRchimera_' + chimera_dict[each_chimera][0] + '+' + chimera_dict[each_chimera][1]
+		chimeras.write('>' + new_seq_name + '\n' + str(SeqDict[each_chimera].seq) + '\n')
+
 
 	return chimera_dict
 	
@@ -194,9 +230,9 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 		new_seq_name = str(barcode_info_dict[each_seq][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 
 		#check the orientation of the sequence; if the barcode is in the 3' end, reverse complement the seq
-		if barcode_info_dict[each_seq][1] < 5: # The start position _should_ be 1, but this allows for some slop
+		if barcode_info_dict[each_seq][1] < 15: # The start position _should_ be 1, but this allows for some slop
 			new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][2]:]) # "barcode_end_posi" to the end of the sequence
-		elif barcode_info_dict[each_seq][1] > len(str(SeqDict[each_seq].seq))-30: # Those barcodes that are at the end of the sequences, so need to be reversecomplemented
+		elif barcode_info_dict[each_seq][1] > len(str(SeqDict[each_seq].seq))-40: # Those barcodes that are at the end of the sequences, so need to be reversecomplemented
 			new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[:barcode_info_dict[each_seq][1]-1])) # the beginning of the sequence to "barcode_start_posi" - 1
 		else: # Those barcodes that are at the middle of the sequences
 			new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][2]:])
@@ -862,6 +898,13 @@ else:
 					Recycle_bc = True
 				else:
 					sys.exit('Error: incorrect setting of Recycle_no_barcoded_seq')
+			elif setting_name == 'Recycle_chimeric_seq':
+				if setting_argument == '0':
+					Recycle_chimera = False
+				elif setting_argument == '1':
+					Recycle_chimera = True
+				else:
+					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
 
 	print "Settings for this run:"
 	print "Sequence file:\t", rawsequences, "\n Loci:\t", locus_list
@@ -903,10 +946,16 @@ if mode in [0,1]: # Make blast databases and read the raw sequences
 
 if mode == 0: # QC mode
 	## Check chimeras ##
-	sys.stderr.write('Checking for inter-locus chimeras...\n')
-	chimeras_file = Output_prefix + '_0_chimeras.fa'
-	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
-	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
+	sys.stderr.write('Checking chimeric sequences...\n')
+	if not Recycle_chimera:
+		chimeras_file = Output_prefix + '_0_chimeras.fa'
+		non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
+		chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=False)
+	else:
+		chimeras_file = Output_prefix + '_0_chimeras.fa'
+		non_chimeras_file = Output_prefix + '_0_nonchimeras+split.fa'
+		chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=True)
+	
 	count_chimeric_sequences = len(chimera_dict)
 	raw_sequences = Output_folder + '/' + non_chimeras_file
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
