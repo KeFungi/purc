@@ -1,20 +1,31 @@
 #!/usr/bin/env python
 
-#TODO - create two new modes? One that just annotates the seqs (but doesn't split or cluster them)
-# and another that annotates and splits, but doesn't cluster (or forget this one -- the new
-# one above would do it, in conjuction with the current mode 2. need to think about this some more
-# because the clustering needs to happen on single-barcode sets (don't want to cluster seqs from
-# multiple bcodes together)
+#TODO - create a mode that just annotates (no splitting or clustering)
 
-#TODO/note (to myself, mostly!). The "unclassifiable" output file is very helpful. I think blast may be being a little 
-# problematic in some cases. E.g., there are some sequences that ended up in that file because they
-# were matched to, say, groupB (A.cystopteris, C.montana, C.sudetica, etc) but there was no groupB
-# for that barcode. However, there was a groupC (C.fragilis complex), and that is what these sequences
-# appear to be. So either have to be very careful and check those seqs (individually??), or change the map
-# (so that both group B and C direct to the groupC accession), or tweak the blast?
-# Maybe the secret would be to include "dummy" entries in the maps. Ie., if there's no groupB for a given
+# TODO - Maybe the secret would be to include "dummy" entries in the maps. Ie., if there's no groupB for a given
 # barcode, map groupB for that barcode to something like "MisMatch". Then they'll show up in the trees
 # etc and can be dealt with.
+
+# TODO re:mode 2. The naming of files and folders needs to get clean up. Currently this mode requires that the output folder
+# be already created (this is ok, I suppose), and that the input seqence file be named output_prefix + annotated.fa? It's a
+# little weird than that -- when I had the Input_sequence_file set to PBR2_C_3_annotated.fa and the Output_prefix set to
+# splitByBC, I got the following error: No such file or directory: 'splitByBC_3_annotated.fa'. When I renamed the input seq
+# file to that, and stuck inside the splitByBC folder, it worked
+
+# TODO re:mode 3. Currently mode 2 creates subdirectories for each of the splits it makes, but mode 3 wants all the files
+# to be in a single directory. Do we want to fix this? Could leave it as is, with instructions..
+
+# TODO re: mode 3. Hm. If I try to cluster sequences that are split by barcode, it looks like I run into a problem in 
+# that there's no locus? Here's the error:
+# File "/Users/carlrothfels/Desktop/R_Python_etal/git_repositories/ppp_repo/ppp.py", line 1207, in <module>
+#     shutil.copyfileobj(open(cleanfile,'rb'), outputfiles[locus]) # Add each file to the right output file
+# KeyError: '0.995dCh2Ss2C3'
+# If I'm right (about the root of the error), then we either need to fix it so that it can handle the locus problem
+# (which doesn't seem possible?), or we need to add a 
+
+# TODO: add in a cleanUpFiles option in the .conf such that if it is set it yes it erases all the S1C10.999CH1 etc files when they are no longer needed
+# if we do this (perhaps worth doing regardless), we should get PUSSwhatever to spit out the settings used (specifically the clustering settings)
+# so that that information doesn't get lost (the researcher can go back and figure out what they did...)
 
 print
 print """
@@ -1131,12 +1142,12 @@ if mode == 2: # Just split the seqs
 
 if mode == 3: # Just do some clustering
 	os.chdir(Output_folder)
-	tocluster = glob.glob("*")
+	tocluster = glob.glob("*") # Will attempt to cluster all files (and folders!) in the Output_folder directory
 	print "going to try to cluster these files: ", tocluster
 	for thisfile in tocluster:
 				
-		print "\tFirst clustering"
 		print "\nAttempting to sort sequences in: ", thisfile
+		print "\tFirst clustering"
 		
 		outFile = sortIt_length(file = thisfile, verbose_level = verbose_level)
 		outFile = clusterIt(file = outFile, clustID = clustID, round = 1, verbose_level = 0)
@@ -1162,10 +1173,11 @@ if mode == 3: # Just do some clustering
 
 		outFile = sortIt_size(file = outFile, thresh = sizeThreshold2, round = 3, verbose_level = 0)
 
+
+	## Summarizing and cleaning ##
 	tosummarize = glob.glob("*Ss3.fa")
 	LocusTaxonCountDict_clustd = {}
 	
-	## Summarizing and cleaning ##
 	loci = []
 	for each_file in tosummarize:
 		thisfasta = parse_fasta(each_file)
@@ -1200,12 +1212,20 @@ if mode == 3: # Just do some clustering
 		outputfile_name = "_" + str(locus) + ".txt"
 		outputfiles[locus] = open(outputfile_name, 'w')
 	for cleanfile in cleanfiles:
-		locus = str(cleanfile).split("_")[-2] # find out what locus the file contains
+		#I thnk I've got this fixed now, but keeping these comments here for now in case I missed something
+		# locus = str(cleanfile).split("_")[-2] # find out what locus the file contains
 		
-		# This is messing up because the *_clean.fa file name, when clustering data that has been split by 
-		# group at least, doesn't contain the locus name
-		# TODO - fix this. What happens if I attempt to cluster a group that contains multiple loci?
-		shutil.copyfileobj(open(cleanfile,'rb'), outputfiles[locus]) # Add each file to the right output file
+		# # This is messing up because the *_clean.fa file name, when clustering data that has been split by 
+		# # group or barcode etc, doesn't contain the locus name
+		# # TODO - fix this. What happens if I attempt to cluster a group that contains multiple loci?
+		# shutil.copyfileobj(open(cleanfile,'rb'), outputfiles[locus]) # Add each file to the right output file
+
+		sequences = parse_fasta(cleanfile)
+		for eachSeq in sequences:
+			locus = eachSeq.id.split("|")[1]
+			SeqIO.write(eachSeq, outputfiles[locus], "fasta")
+
+
 	for thisfile in outputfiles:
 		outputfiles[thisfile].close()
 
