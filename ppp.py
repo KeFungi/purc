@@ -796,7 +796,8 @@ elif sys.argv[1] in ['-help', '-h', '-citation']:
 	sys.exit(usage + citation)
 
 else:
-	print "PPP called with: \n\t", sys.argv, "\n"
+	print "PPP called with: \n\t", sys.argv, "\n" # Why does this print command (and the others, below)
+	# not get printed earlier if using a redirect? ie, it says "Reading sequences.." but doesn't say "PPP called with:.."
 	try:
 		configuration = open(sys.argv[1], 'rU')
 	except:
@@ -907,7 +908,7 @@ else:
 					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
 
 	print "Settings for this run:"
-	print "Sequence file:\t", rawsequences, "\n Loci:\t", locus_list
+	print "Sequence file:\t", raw_sequences, "\n Loci:\t", locus_list
 	if mode in [0,1]:
 		print "Mapping files:\t", mapping_file_list
 	if mode != 2: # ie, some clustering will be done
@@ -946,7 +947,7 @@ if mode in [0,1]: # Make blast databases and read the raw sequences
 
 if mode == 0: # QC mode
 	## Check chimeras ##
-	sys.stderr.write('Checking chimeric sequences...\n')
+	sys.stderr.write('Checking for inter-locus chimeric sequences (concatemers)...\n')
 	if not Recycle_chimera:
 		chimeras_file = Output_prefix + '_0_chimeras.fa'
 		non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
