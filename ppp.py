@@ -21,7 +21,7 @@ print """
 -------------------------------------------------------------
 |                             PPP                           |
 |                 PacBio Polyploidy Pipeline                |
-|                        version 1.24                       |
+|                        version 1.88                       | # at least, by this point!
 |                                                           |
 |                 Fay-Wei Li & Carl J Rothfels              |
 -------------------------------------------------------------
@@ -110,6 +110,7 @@ def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1
 	os.popen(blastn_cLine)	
 	return
 
+# This function looks for chimeras that are formed _between_ multiple loci (ie, two loci got concatenated together in the pacbio library prep)
 def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict):
 	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
@@ -208,6 +209,7 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 	
 	return 
 
+# This function looks for barcodes at the ends of the sequence, only. So it avoids internal barcodes (helpful in part because some of our loci had regions that were similar to some primer sequences)
 def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_range=25):
 	#blast_outfile = open(outputfile, 'w')
 	F_ends = open('tempF', 'w')
@@ -692,6 +694,7 @@ def clusterIt(file, clustID, round, verbose_level=0):
 		print err
 	return outFile
 	
+# This function looks for PCR chimeras -- those formed within a single amplicon pool
 def deChimeIt(file, round, verbose_level=0):
 	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
@@ -734,7 +737,11 @@ def muscleIt(file, verbose_level=0):
 		print err
 	return outFile
 
-#### Setup ####
+
+
+
+################################################ Setup ################################################
+
 if len(sys.argv) < 2:
 	sys.exit(usage)
 	
@@ -783,7 +790,7 @@ else:
 			elif setting_name == 'RefSeq_blastDB':
 				refseq_databasefile = setting_argument
 			elif setting_name == 'Locus_name':
-				locus_list = setting_argument.replace(' ', '').replace('\t', '').split(',')
+				locus_list = setting_argument.upper().replace(' ', '').replace('\t', '').split(',') #needs the upper() now that LocusTaxonCountDict_unclustd has the loci in uppercase
 			elif setting_name == 'Locus-barcode-taxon_map':
 				mapping_file_list = setting_argument.replace(' ', '').replace('\t', '').split(',')
 			elif setting_name == 'Usearch':
@@ -844,7 +851,13 @@ else:
 					Recycle_bc = True
 				else:
 					sys.exit('Error: incorrect setting of Recycle_no_barcoded_seq')
-#### Run ####
+
+
+
+
+
+################################################ Run ########################################
+
 if mode in [0,1]: # Make blast databases and read the raw sequences
 	if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 		shutil.rmtree(BLAST_DBs_folder)
@@ -869,7 +882,7 @@ if mode in [0,1]: # Make blast databases and read the raw sequences
 
 if mode == 0: # QC mode
 	## Check chimeras ##
-	sys.stderr.write('Checking chimeric sequences...\n')
+	sys.stderr.write('Checking for inter-locus chimeras...\n')
 	chimeras_file = Output_prefix + '_0_chimeras.fa'
 	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
 	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict)
@@ -897,7 +910,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
 
 	if Recycle_bc:
-		sys.stderr.write('Recycling...\n')
+		sys.stderr.write('Looking for primers in the no-primer sequences, using Smith-Waterman pairwise alignment...\n')
 		SeqDict_no_bc = SeqIO.index(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'fasta') # Read in the raw sequences as dictionary, using biopython's function
 		count_seq_recycled = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
 		sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
@@ -1028,7 +1041,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	count_output = open('counts.xls', 'w')
 	count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
 	if mode == 0:
-		count_output.write('Chimeric sequences:\t' + str(count_chimeric_sequences) + '\n')
+		count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
 	count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
 	count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
 	count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
@@ -1042,7 +1055,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	# getting a list of all the taxa with sequences, from the count dictionary
 	# Using the counts of unclustered sequences so as to not miss any taxa
 	for i in range(0,len(LocusTaxonCountDict_unclustd)): 
-		# The keys for this dictionary is a list of two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
+		# The keys for this dictionary are two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
 		if not LocusTaxonCountDict_unclustd.keys()[i][0] in taxon_list:
 			taxon_list.append(LocusTaxonCountDict_unclustd.keys()[i][0])
 
