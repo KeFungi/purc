@@ -14,6 +14,9 @@ Dual_barcode			= 0		# 0: Barcodes only on one primer
 Barcode_detection		= 0		# 0: Search barcode in entire sequences; will produce "ErrMidBC" flag if barcodes are not at the ends of the sequence 
 								# 1: Search barcode only at the ends of sequences
 
+Recycle_chimeric_seq	= 1		# 0: Do not recycle
+								# 1: Split chimeric sequences into respective locus
+
 Recycle_no_barcoded_seq	= 0		# 0: Do not recycle
 								# 1: Use Smith-Waterman local alignment to find barcodes in those sequences that BLAST failed to detect barcode
 																											
