@@ -863,6 +863,16 @@ else:
 				else:
 					sys.exit('Error: incorrect setting of Recycle_no_barcoded_seq')
 
+	print "Settings for this run:"
+	print "Sequence file:\t", rawsequences, "\n Loci:\t", locus_list
+	if mode in [0,1]:
+		print "Mapping files:\t", mapping_file_list
+	if mode != 2: # ie, some clustering will be done
+		print "Similarity cut-off for clustering:\t", clustID, "\t", clustID2, "\t", clustID3
+		print "Cluster size for retention:\t", sizeThreshold, "\t", sizeThreshold, "\t", sizeThreshold2
+		# may want to add more outputs here
+	
+
 
 
 
@@ -900,7 +910,7 @@ if mode == 0: # QC mode
 	count_chimeric_sequences = len(chimera_dict)
 	raw_sequences = Output_folder + '/' + non_chimeras_file
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
-	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' chimeric sequences found\n')
+	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
 
 if mode in [0,1]: # Run the full annotating, clustering, etc.	
 	## Remove barcodes ##
@@ -1048,85 +1058,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 			fasta_cleaned.write(str('>' + seq.id + "\n" + seq.seq + "\n"))
 		fasta_cleaned.close()
 
-	#### Producing a summary #### 
-	count_output = open('counts.xls', 'w')
-	count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
-	if mode == 0:
-		count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
-	count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
-	count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
-	count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
-	count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
-	count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
 
-	
-	print "\n**Raw reads per accession per locus**"
-	count_output.write('**Raw reads per accession per locus**\n')
-	taxon_list =[]
-	# getting a list of all the taxa with sequences, from the count dictionary
-	# Using the counts of unclustered sequences so as to not miss any taxa
-	for i in range(0,len(LocusTaxonCountDict_unclustd)): 
-		# The keys for this dictionary are two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
-		if not LocusTaxonCountDict_unclustd.keys()[i][0] in taxon_list:
-			taxon_list.append(LocusTaxonCountDict_unclustd.keys()[i][0])
-
-	print '\t', '\t'.join(locus_list)
-	count_output.write('\t' + '\t'.join(locus_list) + '\n')
-	for each_taxon in set(taxon_list): 
-		print each_taxon, '\t',
-		count_output.write(each_taxon + '\t')
-		for each_locus in locus_list:
-			try:
-				print LocusTaxonCountDict_unclustd[each_taxon, each_locus], '\t', 
-				count_output.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
-			except:
-				print '0', '\t', 
-				count_output.write('0\t')
-		print 
-		count_output.write('\n')
-	print 
-	print "\n**Final clustered sequences per accession per locus**"
-	count_output.write('\n**Final clustered sequences per accession per locus**\n')
-	print '\t', '\t'.join(locus_list)
-	count_output.write('\t' + '\t'.join(locus_list) + '\n')	
-	for each_taxon in set(taxon_list):
-		print each_taxon, '\t',
-		count_output.write(each_taxon + '\t')		
-		for each_locus in locus_list:
-			try:
-				print LocusTaxonCountDict_clustd[each_taxon, each_locus], '\t',
-				count_output.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
-			except:
-				print '0', '\t',
-				count_output.write('0\t') 
-		print
-		count_output.write('\n')		
-	print 
-
-	print '\n**Allele/copy/cluster/whatever count by locus**'
-	count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
-	# I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
-	for each_locus in locus_list:
-		file_name = '_' + str(each_locus) + '_clustered.txt'
-		try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
-			seq_no = len(parse_fasta(file_name))
-			print '\t', each_locus, ':', seq_no
-			count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
-		except:
-			print '\t', each_locus, ':', 0
-			count_output.write(str(each_locus) + '\t0\n')			
-	print
-
-	## Aligning the sequences ##
-	if Align: # Aligning can be turned on/off in the configuration file
-		fastas = glob.glob("_*.fa")
-		""" If you want to align the versions that haven't had their names cleaned up (ie, still have info
-			on the expected number of errors, etc., change the glob to operate on _*.txt"""
-		for file in fastas:
-			print "Aligning ", file, "\n"
-			sys.stderr.write("Aligning " + file + "\n")
-			outFile = muscleIt(file, verbose_level)
-			
 if mode == 2: # Just split the seqs
 	annoFileName = Output_prefix + '_3_annotated.fa'
 	print "The file to be split is ", annoFileName, "\n"
@@ -1148,7 +1080,7 @@ if mode == 3: # Just do some clustering
 				
 		print "\nAttempting to sort sequences in: ", thisfile
 		print "\tFirst clustering"
-		
+
 		outFile = sortIt_length(file = thisfile, verbose_level = verbose_level)
 		outFile = clusterIt(file = outFile, clustID = clustID, round = 1, verbose_level = 0)
 		
@@ -1173,8 +1105,7 @@ if mode == 3: # Just do some clustering
 
 		outFile = sortIt_size(file = outFile, thresh = sizeThreshold2, round = 3, verbose_level = 0)
 
-
-	## Summarizing and cleaning ##
+	## Cleaning seqs and getting them into locus-specific files ##
 	tosummarize = glob.glob("*Ss3.fa")
 	LocusTaxonCountDict_clustd = {}
 	
@@ -1225,16 +1156,102 @@ if mode == 3: # Just do some clustering
 			locus = eachSeq.id.split("|")[1]
 			SeqIO.write(eachSeq, outputfiles[locus], "fasta")
 
-
 	for thisfile in outputfiles:
 		outputfiles[thisfile].close()
 
-	## Aligning the sequences ##
-	if Align: # Aligning can be turned on/off in the configuration file
-		fastas = glob.glob("_*")
-		for file in fastas:
-			print "Aligning ", file, "\n"
-			sys.stderr.write("Aligning " + file + "\n")
-			muscleIt(file, verbose_level)
+	
 
+#### Producing a summary #### 
+count_output = open('counts.xls', 'w')
+count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
+if mode == 0:
+	count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
+if mode in [0,1]:
+	count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+	count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
+	count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+	count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
+	count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+
+print "\n**Raw reads per accession per locus**"
+count_output.write('**Raw reads per accession per locus**\n')
+taxon_list =[]
+# getting a list of all the taxa with sequences, from the count dictionary
+# Using the counts of unclustered sequences so as to not miss any taxa
+if mode in [0,1]:
+	for i in range(0,len(LocusTaxonCountDict_unclustd)): 
+	# The keys for this dictionary are two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
+		if not LocusTaxonCountDict_unclustd.keys()[i][0] in taxon_list:
+			taxon_list.append(LocusTaxonCountDict_unclustd.keys()[i][0])
+if mode == 3:
+	print
+	# do something
+	#TODO LocusTaxonCountDict_unclustd doesn't exist in mode 3, but we'd still like to summarize. How to do so?
+
+print '\t', '\t'.join(locus_list)
+count_output.write('\t' + '\t'.join(locus_list) + '\n')
+for each_taxon in set(taxon_list): 
+	print each_taxon, '\t',
+	count_output.write(each_taxon + '\t')
+	for each_locus in locus_list:
+		try:
+			print LocusTaxonCountDict_unclustd[each_taxon, each_locus], '\t', 
+			count_output.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
+		except:
+			print '0', '\t', 
+			count_output.write('0\t')
+	print 
+	count_output.write('\n')
+print 
+print "\n**Final clustered sequences per accession per locus**"
+count_output.write('\n**Final clustered sequences per accession per locus**\n')
+print '\t', '\t'.join(locus_list)
+count_output.write('\t' + '\t'.join(locus_list) + '\n')	
+for each_taxon in set(taxon_list):
+	print each_taxon, '\t',
+	count_output.write(each_taxon + '\t')		
+	for each_locus in locus_list:
+		try:
+			print LocusTaxonCountDict_clustd[each_taxon, each_locus], '\t',
+			count_output.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
+		except:
+			print '0', '\t',
+			count_output.write('0\t') 
+	print
+	count_output.write('\n')		
+print 
+
+print '\n**Allele/copy/cluster/whatever count by locus**'
+count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
+# I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
+for each_locus in locus_list:
+	file_name = '_' + str(each_locus) + '_clustered.txt'
+	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
+		seq_no = len(parse_fasta(file_name))
+		print '\t', each_locus, ':', seq_no
+		count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
+	except:
+		print '\t', each_locus, ':', 0
+		count_output.write(str(each_locus) + '\t0\n')			
+print
+
+## Aligning the sequences ##
+if Align: # Aligning can be turned on/off in the configuration file
+	fastas = glob.glob("_*.fa")
+	""" If you want to align the versions that haven't had their names cleaned up (ie, still have info
+		on the expected number of errors, etc., change the glob to operate on _*.txt"""
+	for file in fastas:
+		print "Aligning ", file, "\n"
+		sys.stderr.write("Aligning " + file + "\n")
+		outFile = muscleIt(file, verbose_level)
+	
+# 	## Aligning the sequences ##
+# if Align: # Aligning can be turned on/off in the configuration file
+# 	fastas = glob.glob("_*")
+# 	for file in fastas:
+# 		print "Aligning ", file, "\n"
+# 		sys.stderr.write("Aligning " + file + "\n")
+# 		muscleIt(file, verbose_level)
+
+	
 
