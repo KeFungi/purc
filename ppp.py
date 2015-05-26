@@ -108,7 +108,7 @@ def ReverseComplement(seq):
 	return ''.join(letters) 
 
 def makeBlastDB(inFileName, outDBname): #FWL do we need to include instructions for users to get the makeblastdb command to work?
-	'''makes a blast database from the input file'''
+	"""makes a blast database from the input file"""
 	makeblastdb_cmd = 'makeblastdb -in %s -dbtype nucl -parse_seqids -out %s' % (inFileName, outDBname)
 	process = subprocess.Popen(makeblastdb_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()
@@ -122,6 +122,11 @@ def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1
 	return
 
 def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict, SplitChimera=False):
+	"""Blast each input sequences to the reference database to detect chimeric sequences (i.e. a sequence hit to two different loci) 
+	Return "chimera_dict", in which the sequence name is the key and [locus_name1, locus_name2] is the value
+	If SplitChimera = True, then will split the chimeric sequence into two loci, based on the coordinates returned from BLAST. 
+		NOTE: to ensure the BC are split together with each locus, the orientation/strand also matters. 
+	"""
 	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
 	
 	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result

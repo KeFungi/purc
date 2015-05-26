@@ -11,8 +11,16 @@ Multiplex_per_barcode	= 0		# 0: Each barcode contains only one sample
 Dual_barcode			= 1		# 0: Barcodes only one one primer
 								# 1: Barcodes on both primers
 																		
-Align					= 1		# 0: No aligning attempted 
-								# 1: Final consensus sequences will be aligned with MUSCLE	
+Barcode_detection		= 0		# 0: Search barcode in entire sequences; will produce "ErrMidBC" flag if barcodes are not at the ends of the sequence 
+								# 1: Search barcode only at the ends of sequences
+
+Recycle_chimeric_seq	= 1		# 0: Do not recycle
+								# 1: Split chimeric sequences into respective locus
+
+Recycle_no_barcoded_seq	= 0		# 0: Do not recycle
+								# 1: Use Smith-Waterman local alignment to find barcodes in those sequences that BLAST failed to detect barcode
+																											
+Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
 
 [for Mode 0]
 in_RefSeq_seq_file		= Deparia_KNOXref.fas	# Fasta file containing reference names and sequences; the input for making blast database
