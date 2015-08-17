@@ -648,12 +648,20 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 
 		each_rec = each_rec.strip('\n')	
 		seq_name = each_rec.split('\t')[0] # The un-annotated sequence name, e.g., "BC02|m131213_174801_42153_c100618932550000001823119607181400_s1_p0/282/ccs;ee=7.2;"
-		refseq_name = each_rec.split('\t')[1].replace(' ','') # The best-hit reference sequence name, e.g., "PGI_grC__C_diapA_BC17"
+		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "PGI_grC__C_diapA_BC17"
 				
 		# Get the key for retrieving taxon_name in dictOfMapDicts[locus_name]
 		if Multiplex_perBC_flag:
-			group_name = refseq_name.split('_')[1][-1:].upper() # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
-			locus_name = refseq_name.split('_')[0].upper() # The names are in the format ">ApP_grA__otherstuff". I.e., >Locus_group_otherstuff
+			try:
+				group_name = re.search('GROUP=(\w+)\|', refseq_name).group(1)
+				#group_name = refseq_name.split('_')[1][-1:].upper() # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
+			except:
+				sys.exit('ERROR in parsing group annotations in the reference sequences; should be in the format of >locus=X|group=XY|ref_taxon=XYZ')
+			try:
+				locus_name = re.search('LOCUS=(\w+)\|', refseq_name).group(1)
+				#locus_name = refseq_name.split('_')[0].upper() # The names are in the format ">ApP_grA__otherstuff". I.e., >Locus_group_otherstuff
+			except:
+				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X|group=XY|ref_taxon=XYZ')				
 			key = seq_name.split('|')[0] + '_' + group_name # Grabbing the barcode from the source seq, and the group from the matching ref seq.
 			#i.e., gets the unique identifier that can link to a specific sample; i.e. BC01_A, BC01_B, BC01_C...
 			if not group_name in groupsList: #keeping track of which groups are found, as a way of potentially diagnosing errors
