@@ -1092,15 +1092,19 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
 				sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
 
-				clustered_seq_file = parse_fasta(sorted_size3)
-				for each_seq in clustered_seq_file:
-					taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
-					
-					try:
-						LocusTaxonCountDict_clustd[taxon_name, each_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-						# The locus names are the same as each_folder
-					except:
-						LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
+				try:
+					clustered_seq_file = parse_fasta(sorted_size3)
+					for each_seq in clustered_seq_file:
+						taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
+						
+						try:
+							LocusTaxonCountDict_clustd[taxon_name, each_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+							# The locus names are the same as each_folder
+						except:
+							LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
+				except:
+					print sorted_size3, 'is an empty file'
+
 				os.chdir("..") # To get out of the current barcode folder and ready for the next one
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
 
