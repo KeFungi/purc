@@ -82,6 +82,15 @@ def parse_fasta(infile):
 	AllSeq = SeqIO.parse(infile, 'fasta')
 	return [i for i in AllSeq] 
 
+def rename_fasta(infile):
+	"""Make sure no ';' or '='' or '/'' characters in the fasta file, so that they won't confuse blast"""
+	prefix = infile.replace('.fasta', '').replace('.fas', '').replace('.fa', '').replace('.txt', '')
+	outfile = prefix + '_renamed.fasta'
+	sed_cmd = "sed 's/;/_/g;s/=/_/g;s/\//_/g' %s > %s" % (infile, outfile)
+	process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+	(out, err) = process.communicate()
+	return outfile
+
 def count_seq_from_fasta(infile):
 	cmdLine = "grep '>' %s | wc -w" % infile
 	process = subprocess.Popen(cmdLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -132,7 +141,13 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 		seq_name = each_rec.split('\t')[0]
 		First = True
 		if seq_name not in chimera_dict.keys():
-			locus_name = each_rec.split('\t')[1].split('_')[0].upper() #upper to avoid "ApP" != "APP" issue
+			#locus_name = each_rec.split('\t')[1].split('_')[0].upper() #upper to avoid "ApP" != "APP" issue
+			try:
+				locus_name = re.search('LOCUS=(\w+)/', each_rec.split('\t')[1], re.IGNORECASE).group(1)
+				#locus_name = refseq_name.split('_')[0].upper() # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
+			except:
+				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')				
+			locus_name = locus_name.upper()
 			locus_start = each_rec.split('\t')[5]
 			locus_end = each_rec.split('\t')[6]
 			locus_direction = each_rec.split('\t')[-1]
@@ -653,12 +668,12 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 		# Get the key for retrieving taxon_name in dictOfMapDicts[locus_name]
 		if Multiplex_perBC_flag:
 			try:
-				group_name = re.search('GROUP=(\w)/', refseq_name).group(1)
+				group_name = re.search('GROUP=(\w)/', refseq_name, re.IGNORECASE).group(1)
 				#group_name = refseq_name.split('_')[1][-1:].upper() # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
 			except:
 				sys.exit('ERROR in parsing group annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')
 			try:
-				locus_name = re.search('LOCUS=(\w+)/', refseq_name).group(1)
+				locus_name = re.search('LOCUS=(\w+)/', refseq_name, re.IGNORECASE).group(1)
 				#locus_name = refseq_name.split('_')[0].upper() # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
 			except:
 				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')				
@@ -953,6 +968,8 @@ else:
 
 
 ################################################ RUN YO!!! ########################################
+
+raw_sequences = rename_fasta(raw_sequences)
 
 if mode in [0,1]: # Make blast databases and read the raw sequences
 	if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
