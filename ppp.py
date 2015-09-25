@@ -228,10 +228,12 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 		barcode_start_posi = int(each_rec.split('\t')[5])
 		barcode_end_posi = int(each_rec.split('\t')[6])		
 		
-		if seq_name not in barcode_info_dict.keys():
+		if seq_name not in barcode_info_dict.keys() and seq_name not in seq_withbc_morethanone_list:
 			barcode_info_dict[seq_name] = [barcode_name, barcode_start_posi, barcode_end_posi]
 			seq_withbc_list.append(seq_name)
-		else: # means that this seq has more than one barcode, then take out this seq record from seq_withbc_list, but append it to seq_withbc_morethanone_list
+		elif seq_name in seq_withbc_morethanone_list: 
+			continue
+		else: # means that this seq has more than one barcode, then take out this seq record from seq_withbc_list, but append it to seq_withbc_morethanone_list	
 			del barcode_info_dict[seq_name]
 			seq_withbc_list.remove(seq_name)
 			seq_withbc_morethanone_list.append(seq_name)
@@ -320,7 +322,7 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 		barcode_name = each_rec.split('\t')[1] # E.g. BC01, BC24...
 		barcode_start_posi = int(each_rec.split('\t')[5])
 		barcode_end_posi = int(each_rec.split('\t')[6])		
-		if seq_name not in barcode_info_dict.keys():
+		if seq_name not in barcode_info_dict.keys() and seq_name not in seq_withbc_morethanone_list:
 			barcode_info_dict[seq_name] = [barcode_name, barcode_start_posi, barcode_end_posi, '-']
 			seq_withbc_list.append(seq_name)
 		else: # means that this seq has more than one barcode, then take out this seq record from seq_withbc_list, but append it to seq_withbc_morethanone_list
@@ -663,7 +665,6 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 		each_rec = each_rec.strip('\n')	
 		seq_name = each_rec.split('\t')[0] # The un-annotated sequence name, e.g., "BC02|m131213_174801_42153_c100618932550000001823119607181400_s1_p0/282/ccs;ee=7.2;"
 		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "locus=PGI|group=C|ref_taxon=C_diapA_BC17" ##Need to change this format
-		# print "This refseq_name is ", refseq_name, ".  "
 
 		# Get the key for retrieving taxon_name in dictOfMapDicts[locus_name]
 		if Multiplex_perBC_flag:
@@ -711,8 +712,9 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 				new_seq_name = locus_name + '|' + group_name + '|' + seq_name.replace(seq_name_toErase, '')
 			else:
 				new_seq_name = locus_name + '|' + seq_name.replace(seq_name_toErase, '')
-			no_matches.write('>' + new_seq_name + '\n' + str(SeqDict[seq_name].seq) + '\n')
-			seq_processed_list.append(seq_name)
+			if seq_name not in seq_processed_list:
+				no_matches.write('>' + new_seq_name + '\n' + str(SeqDict[seq_name].seq) + '\n')
+				seq_processed_list.append(seq_name)
 			continue
 	
 	seq_no_hit = list(set(SeqDict.keys()) - set(seq_processed_list))
