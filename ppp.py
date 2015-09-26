@@ -325,6 +325,8 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 		if seq_name not in barcode_info_dict.keys() and seq_name not in seq_withbc_morethanone_list:
 			barcode_info_dict[seq_name] = [barcode_name, barcode_start_posi, barcode_end_posi, '-']
 			seq_withbc_list.append(seq_name)
+		elif seq_name in seq_withbc_morethanone_list: 
+			continue
 		else: # means that this seq has more than one barcode, then take out this seq record from seq_withbc_list, but append it to seq_withbc_morethanone_list
 			del barcode_info_dict[seq_name]
 			seq_withbc_list.remove(seq_name)
@@ -825,7 +827,8 @@ else:
 	except:
 		sys.stderr.write('Error: Cannot open the configuration file\n')
 		sys.exit(usage)
-
+	ppp_location = os.path.dirname(os.path.abspath( __file__ ))
+		
 	## Setting up defaults ##
 	mode = 0
 	Check_chimeras = False
@@ -864,11 +867,14 @@ else:
 			elif setting_name == 'Locus-barcode-taxon_map':
 				mapping_file_list = setting_argument.replace(' ', '').replace('\t', '').split(',')
 			elif setting_name == 'Usearch':
-				Usearch = setting_argument
+				Usearch = ppp_location + '/' + setting_argument
+				print 'Usearch location: ', Usearch
 			elif setting_name == 'Cutadapt':
-				Cutadapt = setting_argument
+				Cutadapt = ppp_location + '/' + setting_argument
+				print 'Cutadapt location: ', Cutadapt
 			elif setting_name == 'Muscle':
-				Muscle = setting_argument
+				Muscle = ppp_location + '/' + setting_argument
+				print 'Muscle location: ', Muscle				
 			elif setting_name == 'clustID':
 				clustID = float(setting_argument)
 			elif setting_name == 'clustID2':

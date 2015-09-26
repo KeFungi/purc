@@ -27,9 +27,9 @@ in_Barcode_seq_file		= barcode_seq_plate1_2_Dep.txt		# Fasta file containing bar
 in_RefSeq_seq_file		= refseqs_all.fa					# Fasta file containing reference names and sequences; the input for making blast database
 
 [Executables]
-Usearch 				= usearch				# The name of (or path to) Usearch executable
-Cutadapt				= cutadapt				# The name of (or path to) Cutadapt executable
-Muscle 					= muscle				# The name of (or path to) Muscle executable
+Usearch 				= Dependencies/usearch8.1.1756		# The name of (or path to) Usearch executable
+Cutadapt				= Dependencies/cutadapt				# The name of (or path to) Cutadapt executable
+Muscle 					= Dependencies/muscle3.8.31			# The name of (or path to) Muscle executable
 
 [File Names]
 Input_sequence_file		= PBR3_reduced_forTesting_seqname.fa
