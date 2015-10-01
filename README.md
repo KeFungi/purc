@@ -35,13 +35,16 @@ There are however three other dependencies that you have to install yourself:
 
 
 ### To run ###
-First, cd to the directory where your sequence file is located. Make a configuration file - use the example distributed with purc. Purc takes in all the information needed from that configuration file, and can be run by 
+First, cd to the directory where your sequence file is located. Make a configuration file (there are several examples distributed with purc. Purc takes in all the information needed from that configuration file, and can be run by: 
 ```
 #!shell
 /Users/fayweili/Programs/purc/purc.py ppp_configuration.txt > summary.txt
 ```
-This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH. 
-
+This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you run by: 
+```
+#!shell
+purc.py ppp_configuration.txt > summary.txt
+```
 
 ### Citation ###
 
