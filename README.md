@@ -13,18 +13,20 @@ Work flow for PacBio amplicon seq:
 * Woop woop
 
 ### To setup ###
-Purc has several dependencies and we bundled most of them together in the download folder. To setup, cd to the purc directory, and type 
+Purc has several dependencies and we bundled most of them together in the distribution. To setup, cd to the purc directory, and type 
 ```
 #!shell
 ./install_dependencies.sh
 ```
-If you get "permission defied" error, then 
+If you get "permission denied" error, then 
 ```
 #!shell
 chmod +x install_dependencies.sh
 ```
 
-* Biopython
+There are however three other dependencies that you have to install:
+* Python - Version 2.7 or later. We have not tested purc on Python 3, and it will probably not work.
+* BioPython - Version 1.6 or later (http://biopython.org/wiki/Main_Page). You need to have Numpy (http://www.numpy.org) in place before installing BioPython. Please refer to BioPython manual for installation instruction: http://biopython.org/DIST/docs/install/Installation.html
 * BLAST+
 
 ### To run ###
