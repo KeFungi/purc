@@ -143,7 +143,7 @@ Version dated: \today
 \medskip
 
 \begin{center}
-\noindent{\Large \bf PPP/PUSS/Whatever v0.1 Manual}\\
+\noindent{\Large \bf PURC v0.1 Manual}\\
 \bigskip
 \noindent {\normalsize \bf Carl J. Rothfels$^1$, and Fay-Wei Li$^{1,2}$}\\
 \noindent {\small \it
@@ -187,26 +187,36 @@ multilabeled genetrees. Issues with cloning. Some terminolog, etc.
 Quick intro to what PPP (to be renamed) does.
 
 \subsection{PPP workflow}
-Make a flowchart? Describe the things that PPP does.
+[use the figure in manuscript?] Make a flowchart? Describe the things that PPP does.
 Describe how to call it.
 
 \bigskip\section{Dependencies} %Describe how to install all of these
 \subsection{Python}
-Requires Python 2.7 or later version. We have not tested PPP on Python 3. 
+Requires Python 2.7 or later version. We have not tested PURC on Python 3, and it will probably not work. 
 
 \subsection{BioPython}
-Requires BioPython 1.6 or later version (http://biopython.org/wiki/Main_Page). You have to have Numpy (http://www.numpy.org) in place before installing BioPython. 
+Requires BioPython 1.6 or later version (http://biopython.org/wiki/Main_Page). You need to have Numpy (http://www.numpy.org) in place before installing BioPython. Please refer to BioPython manual for installation instruction: http://biopython.org/DIST/docs/install/Installation.html
 
-\subsection{Blast}
-BLAST+ (http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) is required, and should be in your PATH. If you are using Mac, the easiest way is to download the .dmg file and follow the installer's instruction.  
+\subsection{BLAST}
+Requires BLAST+ v2.2.30 or later version (http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download), and the executables should be in your PATH. If you are using Mac, the easiest way is to download the .dmg file and follow the installer's instruction. To test if this is installed correctly, open Terminal and type "blastn -h" (without quotations). If you see a bunch of stuff pooped out (i.e. "USAGE: ...blah blah blah"), then you are good to go. However, if you get "command not found" error, then BLAST is not installed correctly.  
+
+\subsection{cutadapt}
 
 \subsection{USEARCH}
-Requires Usearch 8 (http://www.drive5.com/usearch/), and PPP is not compatible with Usearch 7.
+Requires Usearch 8 (http://www.drive5.com/usearch/), and PPP is not compatible with Usearch 7. Make sure in the configuration file
+The executable should be in your PATH.
 
 \subsection{MUSCLE}
-http://www.drive5.com/muscle/
+Requires muscle (http://www.drive5.com/muscle/) if you want to align your sequences in the pipeline. The executable should be in your PATH.
 
-\subsection{etc}
+\subsection{About adding cutadapt, USEARCH and MUSCLE into path}
+If you are not familiar with setting PATH variable, here is a brief tutorial: http://www.cyberciti.biz/faq/appleosx-bash-unix-change-set-path-environment-variable/. Alternatively, you can provide the full path to the executables in the configuration file. Assuming you place the executables (named "usearch", "cutadapt", and "muscle") on your Desktop:
+
+[Executables]
+Usearch 		= /Users/fayweili/Desktop/usearch				
+Cutadapt		= /Users/fayweili/Desktop/cutadapt
+Muscle 		= /Users/fayweili/Desktop/muscle		
+
 
 \bigskip\section{Input data}
 Description of how to generate the sorts of data that PPP can use.
