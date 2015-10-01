@@ -47,28 +47,29 @@ You will need to get the following things ready:
         >BC03
         TATCTATCGTATACGC
 
-* **Reference sequence file** - fasta format. PURC uses these references to figure out which locus each reads belong. And when multiple specimens share the same barcode ('grouping'), PURC will also demultiplex them. Each sequence name must specify the locus ('locus=') and the group ('group=') that this ref sequence represents. You can also note where is sequence came from ('ref_taxon='). Drop 'group=' if one barcode corresponds to one specimen. Each designation is separated by /. For example:
+* **Reference sequence file** - fasta format. PURC uses this reference to figure out which locus each read belongs. And when multiple specimens share the same barcode (i.e. 'grouping'), PURC will also demultiplex them given this reference and the map files (see below). Each sequence name must specify the locus ('locus=') and the group ('group=') that this ref sequence represents. You can also note where is sequence came from ('ref_taxon='). Drop 'group=' if one barcode corresponds to one specimen. Each designation is separated by /. For example:
 
         >locus=ApP/group=A/ref_taxon=G_app_BC2
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGCATGGCATATTCACGTCAGAATCCAAGACCCCCGCTTGGGGCCGAGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTCGAGCAGCTATCACATGTTGATGTTTTTTTTTGAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTGTATTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
         >locus=ApP/group=A/ref_taxon=G_disj_BC20
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGTATGGCATATTCACGTCATAATCCAAGACCCCCGCTTGGGGCTGGGGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTTGAGCAGCTATCACATGTTGATGTTTTTTTTTCAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGGGTTTTTTGACATGGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGCTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTATTTCTTTTGGATTAAAGTTTATCTCCCTTGTATTTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
 
-* **Map files** - tab delimited text file. for linking barcodes and groups to specimens. The first column is the barcode (has to be identical to the barcode seq file), the second column is the group designation, and the third is the specimen name. For example:
+* **Map files** - tab delimited text file, one for each locus. for linking barcodes and groups to specimens. The first column is the barcode (has to be identical to the barcode seq file), the second column is the group designation, and the third is the specimen name. For example:
         
         BC01	A	A_jap_8703
         BC01	B	C_frag_8111
         BC02	A	A_ten_4225
     If one barcode corresponds to one specimen, change the second column to specimen names: 
+
         BC01	A_jap_8703
         BC02	C_frag_8111
         BC03	A_ten_4225
-    If two barcodes are used (one on each primer), then:
-    	BCF1	BCR1	De12
-		BCF2	BCR1	De14
-		BCF1	BCR2	92
-		BCF2	BCR2	De16
+    If two barcodes are used (one on each primer), then the first two columns are the barcodes and the third the specimen names:
 
+    	BCF1	BCR1	A_jap_8703
+    	BCF2	BCR1	C_frag_8111
+    	BCF1	BCR2	A_ten_4225
+    	BCF2	BCR2	A_ten_8911
 
 ### Step 3: run ###
 PURC can be run by: 
