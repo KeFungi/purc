@@ -1,12 +1,12 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+### PURC: Polyploids Untangling ... ###
+PURC is a pipeline for extracting alleles from amplicon-sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes.
 
-### What is this repository for? ###
+* Work flow
 
-* Quick summary
 * Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+
 
 ### How do I get set up? ###
 Usage: ./ppp.py configuration_file > out
