@@ -12,6 +12,11 @@ PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio,
 
 ### To setup ###
 Purc has several dependencies and we bundled most of them together in the download folder. To setup, cd to the purc directory, and type 
+```
+#!shell
+./install_dependencies.sh
+
+```
 ./install_dependencies.sh If you get "permission defied" error, type chmod +x install_dependencies.
 
 * Biopython
