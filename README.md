@@ -38,15 +38,14 @@ You will need to get the following things ready:
 
 * **Configuration file** - This contains all the file names and parameters information that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
 * **Barcode sequence file** - fasta format. The sequence name is the barcode name.
-```c
-#!shell
->BC01
-ACTACATATGAGATG
->BC02
-TCATGAGTCGACACTA
->BC03
-TATCTATCGTATACGC
-```
+    ```c
+    >BC01
+    ACTACATATGAGATG
+    >BC02
+    TCATGAGTCGACACTA
+    >BC03
+    TATCTATCGTATACGC
+    ```
 
 * **Reference sequence file** - fasta format. Each sequence name must specify the locus ('locus=') and group ('group=') that this sequence represents. You can also note where is sequence came from ('ref_taxon='). Each designation is separated by /. For example:
 ```
