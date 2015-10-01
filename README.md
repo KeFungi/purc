@@ -12,8 +12,7 @@ Workflow for PacBio amplicon seq:
 * Cluster and remove chimeric sequences, iteratively
 * Woop woop
 
-### PURC compatibility ###
-PURC works on Mac machines. We have not tested it on Linux and PC. [TODO]
+Not that PURC works on Mac machines. We have not tested it on Linux and PC. [TODO]
 
 ### To setup ###
 PURC is consist of purc.py and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
