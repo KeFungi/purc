@@ -45,8 +45,13 @@ This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** 
 purc.py purc_configuration.txt > log.txt
 ```
 
-### Citation ###
+### Tutorial 1 - PacBio ###
 
+
+### Tutorial 2 - Illumina dual barcodes ###
+
+
+### Citation ###
 This script relies heavily on USEARCH, MUSCLE, and BLAST.
 If this script assisted with a publication, please cite the following papers
 (or updated citations, depending on the versions of USEARCH, etc., used).
