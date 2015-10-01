@@ -716,7 +716,8 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			continue
 	
 	seq_no_hit = list(set(SeqDict.keys()) - set(seq_processed_list))
-	print len(seq_no_hit)
+	print "There are ", len(seq_no_hit), " sequences that failed to match any of the reference sequences -- these are likely contaminants."
+	print "They have been added to the 'unclassifiable' output fasta file."
 	for each_rec in seq_no_hit:
 		no_matches.write('>' + each_rec + '\n' + str(SeqDict[each_rec].seq) + '\n')
 	
