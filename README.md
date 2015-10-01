@@ -37,6 +37,7 @@ There are however three other dependencies that you have to install yourself:
 You will need to get the following things ready:
 
 * **Configuration file** - This contains all the file names and parameters information that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
+
 * **Barcode sequence file** - fasta format. The sequence name is the barcode name.
          
         >BC01
@@ -46,6 +47,7 @@ You will need to get the following things ready:
         >BC03
         TATCTATCGTATACGC
         
+
 * **Reference sequence file** - fasta format. Each sequence name must specify the locus ('locus=') and group ('group=') that this sequence represents. You can also note where is sequence came from ('ref_taxon='). Each designation is separated by /. For example:
 
         >locus=ApP/group=A/ref_taxon=G_app_BC2
@@ -53,13 +55,13 @@ You will need to get the following things ready:
         >locus=ApP/group=A/ref_taxon=G_disj_BC20
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGTATGGCATATTCACGTCATAATCCAAGACCCCCGCTTGGGGCTGGGGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTTGAGCAGCTATCACATGTTGATGTTTTTTTTTCAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGGGTTTTTTGACATGGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGCTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTATTTCTTTTGGATTAAAGTTTATCTCCCTTGTATTTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
 
+
 * **Map files** - tab delimited text file for linking barcodes and groups to specimens. The first column is the barcode (has to be identical to the barcode seq file), the second column is the group designation, and the third is the specimen name. For example:
-```
-#!shell
-BC01	A	A_jap_8703
-BC01	B	C_frag_8111
-BC02	A	A_ten_4225
-```
+
+        BC01	A	A_jap_8703
+        BC01	B	C_frag_8111
+        BC02	A	A_ten_4225
+
 
 ### To run ###
 PURC can be run by: 
