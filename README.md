@@ -15,9 +15,12 @@ Purc has several dependencies and we bundled most of them together in the downlo
 ```
 #!shell
 ./install_dependencies.sh
-
 ```
-./install_dependencies.sh If you get "permission defied" error, type chmod +x install_dependencies.
+If you get "permission defied" error, then 
+```
+#!shell
+type chmod +x install_dependencies
+```
 
 * Biopython
 * BLAST+
