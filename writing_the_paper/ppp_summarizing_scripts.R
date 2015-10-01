@@ -4,8 +4,9 @@
 #I have to right-click it and "open with Rstudio"
 
 library(ape)
-figureDirectory <- "/Users/carlrothfels/Desktop/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures"
-mainDirectory <- "/Users/carlrothfels/Desktop/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/aa_data_and_analysis/201509_analysesformanuscript/"
+
+figureDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures/"
+mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/aa_data_and_analysis/201509_analysesformanuscript/"
 
 #### Producing histograms of the number of expected errors per sequence
 # Using the data from each run that are >600bp
@@ -35,7 +36,7 @@ producePlot_ees <- function(){
   # not the same as, those generated from the usearch quality control runs, somehow
   
   setwd(figureDirectory) # Will save the figure to this directory
-  pdf("ee_plots.pdf", h = 2, w = 8)
+  pdf("ee_plots_test.pdf", h = 2, w = 8)
   breaks = seq(0, 600, by=0.2)
   xlim=c(0,10)
   ylim=c(0,6000)
@@ -85,6 +86,7 @@ produceTable_coverages <- function(regimes, loci){
     }
   }
   rownames(coverage_table) <- rnames
+  
   rcount = 0
   for (regime in regimes){
     for (round in rounds){
