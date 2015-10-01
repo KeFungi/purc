@@ -34,7 +34,12 @@ There are however three other dependencies that you have to install yourself:
 
 
 ### To run ###
-First, cd to the directory where your sequence file is located. Make a configuration file (there are several examples distributed with purc. Purc takes in all the information needed from that configuration file, and can be run by: 
+You will need the following:
+* configuration file - this contains all the file names and parameters information that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
+* barcode sequences - in fasta file format
+* reference sequences - in fasta file format
+
+PURC can be run by: 
 ```
 #!shell
 /Users/fayweili/Programs/purc/purc.py purc_configuration.txt > log.txt
