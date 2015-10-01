@@ -1,6 +1,6 @@
 # PURC: Pipeline for Untangling Reticulate Complexes
 
-### Overview ###
+## **Overview** ##
 PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. 
 
 Workflow for PacBio amplicon seq:
@@ -14,8 +14,7 @@ Workflow for PacBio amplicon seq:
 
 Note that PURC works on Mac machines. We have not tested it on Linux and PC. [TODO]
 
----
-
+## **Quick Start** ##
 ### Step 1: setup ###
 PURC is consist of purc.py and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
 ```
