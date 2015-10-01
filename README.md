@@ -34,18 +34,20 @@ There are however three other dependencies that you have to install yourself:
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - Version 2.2.30 or later. Place the executables in your PATH. If you are using Mac, the easiest way is to download the .dmg file and follow the installer's instruction. To test if this is installed correctly, open Terminal and type "blastn -h" (without quotations). If you see a bunch of stuff pooped out (i.e. "USAGE: ...blah blah blah"), then you are good to go. However, if you get "command not found" error, then BLAST is not installed correctly.  
 
 
-### To run ###
+## To run ##
 First, cd to the directory where your sequence file is located. Make a configuration file (there are several examples distributed with purc. Purc takes in all the information needed from that configuration file, and can be run by: 
 ```
 #!shell
-/Users/fayweili/Programs/purc/purc.py ppp_configuration.txt > summary.txt
+/Users/fayweili/Programs/purc/purc.py ppp_configuration.txt > log.txt
 ```
-This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you run by: 
+This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you can run by: 
 ```
 #!shell
-purc.py ppp_configuration.txt > summary.txt
+purc.py ppp_configuration.txt > log.txt
 ```
 
+## Your title here... ##
+### Your title here... ###
 ### Citation ###
 
 This script relies heavily on USEARCH, MUSCLE, and BLAST.
