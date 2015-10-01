@@ -12,11 +12,11 @@ Workflow for PacBio amplicon seq:
 * Cluster and remove chimeric sequences, iteratively
 * Woop woop
 
-### Purc compatibility ###
-Purc works on Mac machines. We have not tested it on Linux and PC. [TODO]
+### PURC compatibility ###
+PURC works on Mac machines. We have not tested it on Linux and PC. [TODO]
 
 ### To setup ###
-Purc is consist of purc.py and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get dependencies in place, cd to the purc directory, and type: 
+PURC is consist of purc.py and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
 ```
 #!shell
 ./install_dependencies.sh
@@ -38,12 +38,12 @@ There are however three other dependencies that you have to install yourself:
 First, cd to the directory where your sequence file is located. Make a configuration file (there are several examples distributed with purc. Purc takes in all the information needed from that configuration file, and can be run by: 
 ```
 #!shell
-/Users/fayweili/Programs/purc/purc.py ppp_configuration.txt > log.txt
+/Users/fayweili/Programs/purc/purc.py purc_configuration.txt > log.txt
 ```
 This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you can run by: 
 ```
 #!shell
-purc.py ppp_configuration.txt > log.txt
+purc.py purc_configuration.txt > log.txt
 ```
 
 ### Citation ###
@@ -52,7 +52,7 @@ This script relies heavily on USEARCH, MUSCLE, and BLAST.
 If this script assisted with a publication, please cite the following papers
 (or updated citations, depending on the versions of USEARCH, etc., used).
 
-PPP: 
+PURC: 
 -Awesome paper by carl and fay-wei. Awesome journal. Awesome page numbers.
 
 USEARCH/UCLUST: 
@@ -76,6 +76,5 @@ BLAST:
 BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
 
 ### Who do I talk to? ###
-
-Carl Rothfels
 Fay-Wei Li
+Carl Rothfels
