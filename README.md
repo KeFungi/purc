@@ -1,7 +1,9 @@
 # PURC: Polyploids Untangling ... #
 
 ### Overview ###
-PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. Work flow for PacBio amplicon seq:
+PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. 
+
+Work flow for PacBio amplicon seq:
 
 * Check concatemers and split them if requested (more on concatemers [here](https://github.com/PacificBiosciences/cDNA_primer/wiki/Artificial-concatemers,-PCR-chimeras,-and-fusion-genes))
 * Identify barcodes and remove them
@@ -27,6 +29,7 @@ chmod +x install_dependencies
 
 ### To run ###
 Usage: ./purc.py configuration_file > out
+
 Example: 
 ```
 #!shell
