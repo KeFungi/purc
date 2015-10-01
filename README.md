@@ -1,7 +1,4 @@
-#HA#
-also: Pipeline for Untangling Reticulate Complexes
-
-# PURC: Polyploids Untangling by Rothfels and Carl#
+# PURC: Pipeline for Untangling Reticulate Complexes
 
 ### Overview ###
 PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. 
