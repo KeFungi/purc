@@ -3,7 +3,7 @@
 ### Overview ###
 PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. 
 
-Work flow for PacBio amplicon seq:
+Workflow for PacBio amplicon seq:
 
 * Check concatemers and split them if requested (more on concatemers [here](https://github.com/PacificBiosciences/cDNA_primer/wiki/Artificial-concatemers,-PCR-chimeras,-and-fusion-genes))
 * Identify barcodes and remove them
@@ -11,6 +11,9 @@ Work flow for PacBio amplicon seq:
 * Assign each sequence to specimen based on the barcode and user-specified reference database
 * Cluster and remove chimeric sequences, iteratively
 * Woop woop
+
+### Purc compatibility ###
+Purc works on Mac machines. We have not tested it on Linux and PC. [TODO]
 
 ### To setup ###
 Purc has several dependencies and we bundled most of them together in the distribution. To setup, cd to the purc directory, and type 
@@ -30,21 +33,23 @@ There are however three other dependencies that you have to install:
 * [BioPython](http://biopython.org/wiki/Main_Page) - Version 1.6 or later. You need to have [Numpy](http://www.numpy.org) in place before installing BioPython. Please refer to BioPython [manual](http://biopython.org/DIST/docs/install/Installation.htmlall/Installation.html) for installation instruction.
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - Version 2.2.30 or later. Place the executables in your PATH. If you are using Mac, the easiest way is to download the .dmg file and follow the installer's instruction. To test if this is installed correctly, open Terminal and type "blastn -h" (without quotations). If you see a bunch of stuff pooped out (i.e. "USAGE: ...blah blah blah"), then you are good to go. However, if you get "command not found" error, then BLAST is not installed correctly.  
 
-### To run ###
-Usage: ./purc.py configuration_file > out
+After dependencies are all in place, store the whole purc directory somewhere and don't bother to fiddle with it. DO NOT copy purc.py to your working directory; instead, call purc.py from there. For example 
+```
+#!shell
+/Users/fayweili/Programs/purc/purc.py configuration.txt > log.txt
+```
 
-Example: 
+
+### To run ###
+Place the whole purc directory somewhere, and call purc.py 
+First you need to 
+Purc takes in file names and parameters from a configuration file, and can be run by 
 ```
 #!shell
 ./purc.py ppp_configuration.txt > summary.txt
 ```
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+
 
 ### Citation ###
 
