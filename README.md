@@ -14,7 +14,9 @@ Workflow for PacBio amplicon seq:
 
 Note that PURC works on Mac machines. We have not tested it on Linux and PC. [TODO]
 
-### To setup ###
+---
+
+### Step 1: setup ###
 PURC is consist of purc.py and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
 ```
 #!shell
@@ -33,7 +35,7 @@ There are however three other dependencies that you have to install yourself:
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - Version 2.2.30 or later. Place the executables in your PATH. If you are using Mac, the easiest way is to download the .dmg file and follow the installer's instruction. To test if this is installed correctly, open Terminal and type "blastn -h" (without quotations). If you see a bunch of stuff pooped out (i.e. "USAGE: ...blah blah blah"), then you are good to go. However, if you get "command not found" error, then BLAST is not installed correctly.  
 
 
-### To get files ready ###
+### Step 2: get files ready ###
 You will need to get the following things ready:
 
 * **Configuration file** - This contains all the file names and parameters information that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
@@ -46,7 +48,6 @@ You will need to get the following things ready:
         TCATGAGTCGACACTA
         >BC03
         TATCTATCGTATACGC
-        
 
 * **Reference sequence file** - fasta format. Each sequence name must specify the locus ('locus=') and group ('group=') that this sequence represents. You can also note where is sequence came from ('ref_taxon='). Each designation is separated by /. For example:
 
@@ -55,15 +56,15 @@ You will need to get the following things ready:
         >locus=ApP/group=A/ref_taxon=G_disj_BC20
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGTATGGCATATTCACGTCATAATCCAAGACCCCCGCTTGGGGCTGGGGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTTGAGCAGCTATCACATGTTGATGTTTTTTTTTCAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGGGTTTTTTGACATGGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGCTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTATTTCTTTTGGATTAAAGTTTATCTCCCTTGTATTTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
 
+ 
 
 * **Map files** - tab delimited text file for linking barcodes and groups to specimens. The first column is the barcode (has to be identical to the barcode seq file), the second column is the group designation, and the third is the specimen name. For example:
-
+        
         BC01	A	A_jap_8703
         BC01	B	C_frag_8111
         BC02	A	A_ten_4225
 
-
-### To run ###
+### Step 3: run ###
 PURC can be run by: 
 ```
 #!shell
