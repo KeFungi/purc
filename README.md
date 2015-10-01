@@ -21,7 +21,7 @@ Purc has several dependencies and we bundled most of them together in the downlo
 If you get "permission defied" error, then 
 ```
 #!shell
-chmod +x install_dependencies
+chmod +x install_dependencies.sh
 ```
 
 * Biopython
