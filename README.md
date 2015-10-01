@@ -25,7 +25,6 @@ chmod +x install_dependencies.sh
 ```
 
 There are however three other dependencies that you have to install:
-* Python - Version 2.7 or later. We have not tested purc on Python 3, and it will probably not work
 
 * Python - Version 2.7 or later. We have not tested purc on Python 3, and it will probably not work.
 * [BioPython](http://biopython.org/wiki/Main_Page) - Version 1.6 or later. You need to have [Numpy](http://www.numpy.org) in place before installing BioPython. Please refer to BioPython [manual](http://biopython.org/DIST/docs/install/Installation.htmlall/Installation.html) for installation instruction.
