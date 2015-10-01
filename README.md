@@ -19,7 +19,7 @@ Purc has several dependencies and we bundled most of them together in the downlo
 If you get "permission defied" error, then 
 ```
 #!shell
-type chmod +x install_dependencies
+chmod +x install_dependencies
 ```
 
 * Biopython
@@ -27,8 +27,11 @@ type chmod +x install_dependencies
 
 ### To run ###
 Usage: ./purc.py configuration_file > out
-Example: ./purc.py ppp_configuration.txt > summary.txt
-For more info, try: ./ppp.py -help
+Example: 
+```
+#!shell
+./purc.py ppp_configuration.txt > summary.txt
+```
 
 * Summary of set up
 * Configuration
