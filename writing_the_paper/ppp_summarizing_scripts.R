@@ -106,6 +106,8 @@ produceTable_coverages <- function(regimes, loci){
 } # End of function
 
 
+#### Producing plots (histograms) of coverage values
+
 # Function to produce a plot of coverage depths/allele
 # May want to do this for the "raw" and "corrected" set of alleles? To show that the bad ones have lower coverage?
 producePlot_coverages <- function(directory, infile){
@@ -114,8 +116,9 @@ producePlot_coverages <- function(directory, infile){
   breaks  <- seq(0, 200, by=5) #Starting the breaks at 4 because that's the minumum size allowed under my PURC settings for these runs
   # Need to tweak the xlim etc based on the result. Currently all the coverages >200 are ignored
   h <- hist(coverages[coverages<201], breaks =  breaks, plot = FALSE)
-  return(h)
-}
+  toReturn <- list(h, coverages) # Need to return coverages here inorder to be able to call abline in the other function
+  return(toReturn) 
+} # End of function
 
 # The breaks in this one work better for small numbers of plots
 producePlot_coverages_old <- function(directory, infile){
@@ -124,21 +127,18 @@ producePlot_coverages_old <- function(directory, infile){
   breaks  <- seq(4, max(coverages)+5, by=2) #Starting the breaks at 4 because that's the minumum size allowed under my PURC settings for these runs
   h <- hist(coverages, breaks =  breaks, plot = FALSE)
   return(h)
-}
+} # End of function
+
 #Function to test the producePlot_coverages() function
-# Good for trouble shooting -manually change "round", "regime" etc to 
-# make sure that the plots in the figure are the right ones
 exampleCovPlot <- function(){
   round <- "R2"
   regime <- "A"
   locus <- "APP"
   directory <- paste(round, "/", round, regime, sep="")
   infile <- paste("_", locus, "_clustered_renamed.fa", sep="")
-  
-  plot(producePlot_coverages(directory, infile), main ="", xlab ="", ylab ="", col = "lightblue")
-}
-
-
+  plot(producePlot_coverages(directory, infile)[[1]], main ="", xlab ="", ylab ="", col = "lightblue") 
+} # End of function
+exampleCovPlot()
 
 
 # function that calls producePlot_coverages for all the analyses and puts the
@@ -152,18 +152,16 @@ produceFigure_coverages <- function(regimes, loci, rounds){
       for (regime in regimes){
         directory <- paste(round, "/", round, regime, sep="")
         infile <- paste("_", locus, "_clustered_renamed.fa", sep="")
-        plot(producePlot_coverages(directory, infile), main = "", xlab="", ylab = "", ylim=c(0,20), xlim=c(0,200))
-        
+        results <- producePlot_coverages(directory, infile)
+        toPlot <- results[[1]] #PLoting the histogram, rather than the second element which is the coverages counts
+        plot(toPlot, main = paste(locus, round, regime, sep="_"), xlab="", ylab = "", ylim=c(0,20), xlim=c(0,200)) 
+        abline(v=median(results[[2]])) # The second element of toPlot has the lost if coverage values
       }
     }
   }
 } # End of function
 
 
-setwd(figureDirectory) # Will save the figure to this directory
-pdf("coverage_plots.pdf", h = 7, w = 8)
-produceFigure_coverages(regimes, loci, rounds)
-dev.off()
 
 #### Calls
 
@@ -177,7 +175,9 @@ rounds <- list("R2") #, "R3", "R4" not done yet
 
 table <- produceTable_coverages(regimes, loci)
 
-# Testing the coverage plot function
-exampleCovPlot()
-
+# To produce a plot of coverage histograms
+setwd(figureDirectory) # Will save the figure to this directory
+pdf("coverage_plots_test.pdf", h = 7, w = 8)
+produceFigure_coverages(regimes, loci, rounds)
+dev.off()
 
