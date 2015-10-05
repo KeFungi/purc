@@ -36,7 +36,7 @@ There are however three other dependencies that you have to install yourself:
 ### Step 2: get files ready ###
 You will need to get the following things ready:
 
-* **Configuration file** - This contains all the file names and parameters information that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
+* **Configuration file** - This contains the file names and parameters that PURC needs. There are several examples come with the PURC distribution (open them in TextWrangler or similar text editor).
 
 * **Barcode sequence file** - fasta format. PURC uses this file to identify barcodes in the sequencing reads. The sequence name is the barcode name.
          
@@ -47,7 +47,7 @@ You will need to get the following things ready:
         >BC03
         TATCTATCGTATACGC
 
-* **Reference sequence file** - fasta format. PURC uses these references to figure out which locus each read belongs. Each sequence name must specify the locus ('locus=') that this sequence represents; you can also note where the sequence came from ('ref_taxon='). Each designation is separated by /. For example:
+* **Reference sequence file** - fasta format. PURC uses these references to assign reads to loci. Each reference seq name must specify the locus ('locus=') that this sequence represents; you can optionally note where the sequence came from ('ref_taxon='). Each designation is separated by /. For example:
 
         >locus=ApP/ref_taxon=G_app
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGCATGGCATATTCACGTCAGAATCCAAGACCCCCGCTTGGGGCCGAGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTCGAGCAGCTATCACATGTTGATGTTTTTTTTTGAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTGTATTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
@@ -61,13 +61,13 @@ You will need to get the following things ready:
         >locus=ApP/group=A/ref_taxon=G_disj
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGTATGGCATATTCACGTCATAATCCAAGACCCCCGCTTGGGGCTGGGGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTTGAGCAGCTATCACATGTTGATGTTTTTTTTTCAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGGGTTTTTTGACATGGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGCTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTATTTCTTTTGGATTAAAGTTTATCTCCCTTGTATTTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
 
-* **Map files** - tab delimited text file, one for each locus. This tells PURC which barcode corresponds to which specimen. The first column is the barcode (has to be identical to the barcode seq file), and the second is the specimen name. For example:
+* **Map files** - tab delimited text file, one for each locus. This tells PURC the correspondence between barcode and specimen. The first column is the barcode (has to be identical to the barcode seq file), and the second is the specimen name. For example:
 
         BC01	A_jap_8703
         BC02	C_frag_8111
         BC03	A_ten_4225
         
-	When multiple divergent specimens are pooled together and share the same barcode, you need to add the group designation (in the second column):
+	When one barcode contains multiple specimens, you need to add the group designation in the second column. In this case, one Acystopteris and one Cystopteris specimen both were labeled by barcode 1, but they are divergent enough that PURC can tell them apart (based on the reference sequence file):
 	        
         BC01	A	A_jap_8703
         BC01	B	C_frag_8111
