@@ -84,12 +84,12 @@ You will need to get the following things ready:
 PURC can be run by: 
 ```
 #!shell
-/Users/fayweili/Programs/purc/purc.py purc_configuration.txt > log.txt
+/Users/fayweili/Programs/purc/purc.py purc_configuration.txt
 ```
 This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you can run by: 
 ```
 #!shell
-purc.py purc_configuration.txt > log.txt
+purc.py purc_configuration.txt
 ```
 
 ### Tutorial 1 - PacBio ###

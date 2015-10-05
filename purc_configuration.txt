@@ -1,0 +1,88 @@
+[PPP_Configuration]
+Mode					= 0		# 0: QC and then full run
+								# 1: Full run
+								# 2: Just split. PPP will take the (already annotated) Input_sequence_file and split it up by split_type
+								# 3: Just clustering, etc. PPP will take the file(s) in Output_folder and run clustering and chimera-killing on them		
+									#NOTE: for mode 3, ppp must be called from the folder that has Output_folder already in it (and the files need to already be in Output_folder)
+
+Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
+								# 1: Each barcode contains multiple samples
+
+Dual_barcode			= 0		# 0: Barcodes only on one primer
+								# 1: Barcodes on both primers
+
+Barcode_detection		= 0		# 0: Search barcode in entire sequences; will produce "ErrMidBC" flag if barcodes are not at the ends of the sequence 
+								# 1: Search barcode only at the ends of sequences
+
+Recycle_chimeric_seq	= 1		# 0: Do not recycle
+								# 1: Split chimeric sequences into respective locus
+
+Recycle_no_barcoded_seq	= 0		# 0: Do not recycle
+								# 1: Use Smith-Waterman local alignment to find barcodes in those sequences that BLAST failed to detect barcode
+																											
+Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
+
+[for Mode 0]
+in_Barcode_seq_file		= barcode_seq_plate1_2_Dep.txt		# Fasta file containing barcode names and sequences; the input for making blast database
+in_RefSeq_seq_file		= refseqs_all.fa					# Fasta file containing reference names and sequences; the input for making blast database
+
+[Executables]
+Usearch 				= Dependencies/usearch8.1.1756		# The name of (or path to) Usearch executable
+Cutadapt				= Dependencies/cutadapt				# The name of (or path to) Cutadapt executable
+Muscle 					= Dependencies/muscle3.8.31			# The name of (or path to) Muscle executable
+
+[File Names]
+Input_sequence_file		= PBR3_reduced_forTesting_seqname.fa
+Output_prefix			= PBR3TEST
+Output_folder			= PBR3TEST
+Barcode_blastDB			= barcode_blastdb		# The name of the barcode blast database [either to be created if Mode =0, or pre-existing]
+RefSeq_blastDB			= refseq_blastdb		# The name of the reference sequence blast database [either to be created if Mode =0, or pre-existing]
+
+[Loci]
+Locus_name				= ApP, GAP, IBR, PGI, CRY, NOTH, POLY, DEP	# The order must be identical to that in Locus-barcode-taxon_map
+Locus-barcode-taxon_map	= PBR3_APPmap.txt, PBR3_GAPmap.txt, PBR3_IBRmap.txt, PBR3_PGImap.txt
+
+#   Reverse primers for shorts:
+#   cysGapMidR1	GGAAGVACCTTYCCTACTGCCTG
+#   cysAppMidR1	TAGCTGCTCRAATTCCATKSAT
+#   cysIBRMidR1	CTGATTAAMACATDTGMAGCATCACAAAC
+#   cysPGIMidR1	GCTTTCCATACTAAGCTGCAGAC
+#   
+#   Main Cystopteridaceae primers:
+#   4218CF4	GGACCTGGSCTYGCTGARGAGTG
+#   4218CR12	GCAACRTGAGCAGCYGGTTCRCGRGG
+#   4321F2	TCTGCMCATGCMATTGAAAGAGAG
+#   4321R2	CCCARKGTYGAAAGYTCCCAATC
+#   CRpgicF2U	GAGYGTTTGGAATGTYTCWTTCCTYGG
+#   CRpgicR2U	TCGTCGTGGTTGCTCACAACTTCCC
+#   ESGAPCP11R1ShCys	GTATCCCCACTCRTTATCATACC
+#   gapCpShF1Cys	CYACMAACTGCCTTGCRCCTCTTGCC
+#   CRY2_cysF3	RTCRAAGCCACAGGAGCMAC
+#   CRY2_cysR1	CGAATTCACAATGATCCCTGC
+#   
+#   Eric gapCp primers
+#   ESGAPCP8F1	ATYCCAAGYTCAACTGGTGCTGC
+#   ESGAPCP11R1	GTATCCCCAYTCRTTGTCRTACC
+#   
+#   TRNGR primers:
+#   TRNG1F	GCGGGTATAGTTTAGTGGTAA
+#   TRNR22R	CTATCCATTAGACGATGGACG
+
+[Primers]
+Forward_primer			= GGACCTGGSCTYGCTGARGAGTG, TCTGCMCATGCMATTGAAAGAGAG, GAGYGTTTGGAATGTYTCWTTCCTYGG, CYACMAACTGCCTTGCRCCTCTTGCC	# 5'-3'
+Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACATDTGMAGCATCACAAAC, GCTTTCCATACTAAGCTGCAGAC		# 5'-3'
+
+[Clustering Parameters]
+clustID 				= 0.997 	# The similarity criterion for the initial USEARCH clustering
+clustID2 				= 0.995 	# The similarity criterion for the second clustering
+clustID3 				= 0.990 	# The similarity criterion for the third clustering
+sizeThreshold 			= 1 		# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+
+[Miscellaneous]
+split_type				= group		# The category used to split the annotated sequences (either "locus", "barcode", "group", "taxon", "taxon-locus", or "locus-taxon". Do not include the quotation marks).
+									# This is only useful for mode 2 (modes 0 & 1 split by locus and then by barcode)
+seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_s1_p0		# Remove this from sequence names
+verbose_level 			= 1			# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
+
+
