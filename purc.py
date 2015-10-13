@@ -355,6 +355,8 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 	for seq_withoutbc in seq_withoutbc_list:
 		bc_leftover.write('>' + str(seq_withoutbc) + '\n' + str(SeqDict[seq_withoutbc].seq) + '\n')
 
+	os.remove('tempF')
+	os.remove('tempR')
 	bc_blast_F.close()
 	bc_blast_R.close()
 	bc_toomany.close()
@@ -648,26 +650,13 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for each_file, each_locus in zip(mapping_file_list, locus_list): 
 		dictOfMapDicts[each_locus.upper()] = makeMapDict(each_file, each_locus, Multiplex_perBC_flag, DualBC_flag) # Note the Multiplex_perBC and DualBC flags (as True/False)
 
+	#print dictOfMapDicts
 	annotated_seqs = open(outFile, "w")
 	no_matches = open(failsFile, "w")
 
-	#if verbose_level in [1,2]:
-	#	sys.stderr.write("Annotating " + str(len(SeqDict)) + " records.\n")
-
-	#count = 0
-	#previous_seq_name = ''
 	seq_processed_list = []
 	for each_rec in refseq_blast:
 		
-		#count += 1
-		#if verbose_level in [1,2]:
-		#	if count == int(len(SeqDict)/4):
-		#		sys.stderr.write( "One quarter done\n" ) # FWL; TODO; how to get this to print as the function proceeds, rather than just all at the end?
-		#	elif count == int(len(SeqDict)/2):
-		#		sys.stderr.write( "Half done\n" )
-		#	elif count == int(len(SeqDict)*.75):
-		#		sys.stderr.write( "Three quarters done\n" )
-
 		each_rec = each_rec.strip('\n')	
 		seq_name = each_rec.split('\t')[0] # The un-annotated sequence name, e.g., "BC02|m131213_174801_42153_c100618932550000001823119607181400_s1_p0/282/ccs;ee=7.2;"
 		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "locus=PGI|group=C|ref_taxon=C_diapA_BC17" ##Need to change this format
@@ -691,10 +680,12 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			if not locus_name in locusList: #keeping track of which loci are found, as a way of potentially diagnosing errors
 				locusList.append(locus_name)	
 		else:
-			key = seq_name.split('/')[0] # Grabbing the barcode from the source seq
-			locus_name = locus_list[0].upper()
-			#i.e., gets the unique barcode that can link to a specific sample; i.e. BC01, BC02, BC03...		
-		
+			try:
+				locus_name = re.search('LOCUS=(\w+)/', refseq_name, re.IGNORECASE).group(1)
+				#i.e., gets the unique barcode that can link to a specific sample; i.e. BC01, BC02, BC03...		
+			except:
+				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')				
+			key = seq_name.split('|')[0]
 		try: #use try/except to avoid the error when the key is not present in MapDict				
 			taxon_name = dictOfMapDicts[locus_name][key] 
 			#getting to the dict corresponding to this locus, and then finding that taxon that matches the barcode+group (the key)
@@ -829,7 +820,7 @@ def muscleIt(file, verbose_level=0):
 
 
 ################################################ Setup ################################################
-log = open('PURC_log.txt', 'w')
+log = open('purc_log', 'w')
 log.write(logo + '\n')
 if len(sys.argv) < 2:
 	sys.exit(usage)
@@ -1083,6 +1074,8 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
 	log.write('#Sequence Annotation#\n')
 	sys.stderr.write('Annotating seqs...\n')
+	#if Multiplex_per_barcode:
+	#	sys.stderr.write('...each barcode contains multiple samples...')
 	toAnnotate = primer_trimmed_file
 	annoFileName = Output_prefix + '_3_annotated.fa'
 	LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
@@ -1178,9 +1171,9 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	log.write('\t...done\n\n')	
 
 	## Put all the sequences together ##
-	sys.stderr.write('Putting all the sequences together......\n\n')
+	sys.stderr.write('\rPutting all the sequences together......\n\n')
 	for each_folder in all_folders_loci: # Looping through each of the locus folders
-		outputfile_name = '_' + str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
+		outputfile_name = Output_prefix + '_4_' + str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
 		outputfile = open(outputfile_name, 'w')
 		os.chdir(each_folder)
 		bcodesForThisLocus = glob.glob("*")
@@ -1199,7 +1192,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	#log.write("Cleaning up the file names\n")
 	sys.stderr.write("Cleaning up the file names\n")
 
-	fastas = glob.glob("_*.txt")
+	fastas = glob.glob("*_4_*.txt")
 	for file in fastas:
 		#log.write("Cleaning up the sequence names in " + str(file) + "\n")
 		fasta_cleaned = open(str(file).replace(".txt", "_renamed.fa"), 'w') # Make a new file with .fa instead of .txt
@@ -1290,7 +1283,7 @@ if mode == 3: # Just do some clustering
 		fasta_cleaned.close()
 
 	## Put all the sequences together ##
-	sys.stderr.write('Putting all the sequences together......\n\n')
+	sys.stderr.write('\nPutting all the sequences together......\n\n')
 	cleanfiles = glob.glob("*_clean.fa")
 	outputfiles = {}
 
@@ -1319,7 +1312,7 @@ if mode == 3: # Just do some clustering
 #### Producing a summary #### 
 log.write('#Run Summary#\n\n')
 if mode != 2: # Need to decide what sort of summary would be appropriate if just splitting
-	count_output = open('counts.xls', 'w')
+	count_output = open(Output_prefix + '_5_counts.xls', 'w')
 	count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
 	log.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
 	if mode == 0:
