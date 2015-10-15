@@ -840,14 +840,25 @@ else:
 	ppp_location = os.path.dirname(os.path.abspath( __file__ ))
 		
 	## Setting up defaults ##
-	mode = 0
+	mode = 1
 	Check_chimeras = False
 	Multiplex_per_barcode = False
 	Dual_barcode = False
-	Search_ends_only = False
-	Recycle_bc = True
+	Search_ends_only = True
+	Recycle_bc = False
 	Align = 0
+	clustID = 0.997
+	clustID2 = 0.995
+	clustID3 = 0.990
+	sizeThreshold = 1
+	sizeThreshold2 = 4
 	verbose_level = 0
+	barcode_databasefile = 'barcode_blastdb'
+	refseq_databasefile = 'refseq_blastdb'
+	Use_bundled_dependencies = True
+	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
+	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt'
+	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
 
 	## Read-in the parameters and settings ##
 	for line in configuration:

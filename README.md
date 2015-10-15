@@ -95,7 +95,7 @@ purc.py purc_configuration.txt
 ### Tutorial 1 - PacBio ###
 
 
-### Tutorial 2 - Illumina dual barcodes ###
+### Tutorial 2 - PacBio ###
 
 
 ### Citation ###
