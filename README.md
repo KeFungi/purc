@@ -68,7 +68,7 @@ You will need to get the following things ready:
         BC02	Cystopteris_fragilis_Arizona
         BC03	Cystopteris_fragilis_Taiwan
         
-	When one barcode contains multiple specimens, you need to add the group designation in the second column. In this case, one Acystopteris and one Cystopteris specimen both were labeled by barcode 1, but they are divergent enough that PURC can tell them apart (based on the reference sequence file):
+	When one barcode contains multiple specimens, you need to add the group designation in the second column. In this case, one Acystopteris and one Cystopteris specimen both were labeled by barcode 1, but they are divergent enough that PURC can pull them apart (based on the reference sequence file):
 	        
         BC01	A	Acystopteris_japonica_Taiwan
         BC01	B	Cystopteris_fragilis_Utah
@@ -94,13 +94,23 @@ purc.py purc_configuration.txt
 ```
 
 ### Example 1 - PacBio ###
-In this dataset, four loci were amplified from 30 Cystopteris specimens. All the specimens were labeled with different barcodes, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because one barcode corresponds to one specimen, in the configuration file we specified: 
+In this dataset, four loci were amplified from 30 Cystopteris specimens. All the specimens were labeled with different barcodes, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because one barcode corresponds to one specimen, in the configuration file we specify: 
 ```
 Multiplex_per_barcode	= 0
 ```
 
 
 ### Example 2 - PacBio ###
+In this dataset, four loci were amplified from xx Cystopteris, xx Acystopteris and xx Gymnocarpium specimens. Because we don't have enough barcoded primers, we multiplex each barcode to contain one Cystopteris, one Acystopteris and one Gymnocarpium. For example, xxx, xxx and xxx are all labeled as BC1. We assign them as different "groups" in the map and reference files. In the configuration file we need to specify: 
+```
+Multiplex_per_barcode	= 1
+```
+
+### Example 3 - Illumina ###
+PURC can work with Illumina data too. You'd need to merge the pair-end reads first, for example, using [PEAR](https://github.com/xflouris/PEAR). In this dataset, each sequence is labeled by two barcodes, one on the forward and the other on the reverse primer. In the map file, we tell PURC which barcode combination corresponds to which specimen. We invoke dual-barcode mode by:
+```
+Dual_barcode		= 1
+```
 
 
 ### Citation ###
