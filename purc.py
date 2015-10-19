@@ -1067,7 +1067,7 @@ if mode in [0,1]: # Run the full annotating, clustering, etc.
 	sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
 
 	if Recycle_bc:
-		sys.stderr.write('Looking for primers in the no-primer sequences, using Smith-Waterman pairwise alignment...\n')
+		sys.stderr.write('Looking for barcodes in the no-barcode sequences, using Smith-Waterman pairwise alignment...\n')
 		SeqDict_no_bc = SeqIO.index(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'fasta') # Read in the raw sequences as dictionary, using biopython's function
 		count_seq_recycled = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
 		sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
@@ -1343,7 +1343,7 @@ if mode != 2: # Need to decide what sort of summary would be appropriate if just
 		log.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
 
 	log.write("\n**Raw reads per accession per locus**\n")
-	count_output.write('**Raw reads per accession per locus**\n')
+	count_output.write('\n**Raw reads per accession per locus**\n')
 	taxon_list =[]
 
 # getting a list of all the taxa with sequences, from the count dictionary
@@ -1412,7 +1412,7 @@ log.write('\n**Allele/copy/cluster/whatever count by locus**\n')
 
 # I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
 for each_locus in locus_list:
-	file_name = '_' + str(each_locus) + '_clustered.txt'
+	file_name = Output_prefix + '_4_' + str(each_locus) + '_clustered.txt'
 	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
 		seq_no = len(parse_fasta(file_name))
 		#print '\t', each_locus, ':', seq_no

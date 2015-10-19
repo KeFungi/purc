@@ -29,7 +29,7 @@ Barcode_detection		= 1		# 0: Search barcode in entire sequences; will produce "E
 								# 1: Search barcode only at the ends of sequences
 Recycle_chimeric_seq	= 0		# 0: Do not recycle
 								# 1: Split chimeric sequences into respective locus
-Recycle_no_barcoded_seq	= 0		# 0: Do not recycle
+Recycle_no_barcoded_seq	= 1		# 0: Do not recycle
 								# 1: Use Smith-Waterman local alignment (more sensitive) to find barcodes in those sequences that BLAST failed to detect barcode						
 Align					= 0		# 0: No aligning attempted. 1: Final consensus sequences will be aligned with MUSCLE	
 

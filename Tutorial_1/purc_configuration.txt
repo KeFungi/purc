@@ -16,7 +16,7 @@ Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACA
 
 ***Setting up PURC run***
 [PPP_Configuration]
-Mode					= 1		# 0: QC and then full run
+Mode					= 0		# 0: QC and then full run
 								# 1: Full run
 								# 2: Just split. PPP will take the (already annotated) Input_sequence_file and split it up by split_type
 								# 3: Just clustering, etc. PPP will take the file(s) in Output_folder and run clustering and chimera-killing on them		
