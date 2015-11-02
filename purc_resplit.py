@@ -61,6 +61,22 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 	# FWL - do we not have to close each of the files we've been writing to?
 	return splits_count_dic #as {'BC01': 150, 'BC02': 156} for example
 
+
+
+if len(sys.argv) < 3:
+	sys.exit("""
+
+Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
+
+Usage: ./purc_resplit.py annoated_file split_type
+Example: ./purc_resplit.py purc_run_3_annotated.fa barcode
+
+Note: 
+(1) Possible split_type: barcode, locus, taxon, group
+(2) If one barcode contains multiple samples, then pass the -M argument. e.g. ./purc_resplit.py purc_run_3_annotated.fa barcode -M  
+
+	""")
+
 annotated_file = sys.argv[1]
 split_type = sys.argv[2]
 
@@ -69,7 +85,7 @@ try:
 	if Multiplex_perBC_flag == '-M':
 		SplitBy(annotated_file, split_type, Multiplex_perBC_flag=True)
 	else:
-		print 'Error'
+		print 'Error: unknown argument'
 except:
 	SplitBy(annotated_file, split_type, Multiplex_perBC_flag=False)
 

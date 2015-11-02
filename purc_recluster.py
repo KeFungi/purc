@@ -3,6 +3,8 @@ import sys
 import os
 import re
 import subprocess
+import glob
+import shutil
 from Bio import SeqIO
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
@@ -213,26 +215,108 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
 	log.write('\t...done\n\n')	
 
-	return
+	## Put all the sequences together ##
+	sys.stderr.write('\rPutting all the sequences together......\n\n')
+	for each_folder in all_folders_loci: # Looping through each of the locus folders
+		outputfile_name = str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
+		outputfile = open(outputfile_name, 'w')
+		os.chdir(each_folder)
+		bcodesForThisLocus = glob.glob("*")
+		#print "glob thinks there are these barcode folders present: ", bcodesForThisLocus, "\n\n"
+		for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
+			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
+				os.chdir(bcode_folder)
+				files_to_add = glob.glob("*Ss3.fa")
+				for file in files_to_add: 
+					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
+				os.chdir('..')
+		os.chdir('..')
+		outputfile.close()
+
+
+	return LocusTaxonCountDict_clustd
+
 ppp_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 
-log = open('log.txt', 'w')
+if len(sys.argv) < 6:
+	sys.exit("""
+
+Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
+
+Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2
+Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4
+
+Note: 
+(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
+(2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+
+	""")
+
+log = open('purc_log.txt', 'w')
 annotated_file = sys.argv[1]
-#split_type = sys.argv[2]
+clustID = float(sys.argv[2])
+clustID2 = float(sys.argv[3])
+clustID3 = float(sys.argv[4])
+sizeThreshold = int(sys.argv[5])
+sizeThreshold2 = int(sys.argv[6])
 
-ClusterDechimera(annotated_file, 0.997, 0.995, 0.990, 1, 4)
+LocusTaxonCountDict_clustd = ClusterDechimera(annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
-"""
-try:
-	Multiplex_perBC_flag = sys.argv[3]
-	if Multiplex_perBC_flag == '-M':
-		SplitBy(annotated_file, split_type, Multiplex_perBC_flag=True)
-	else:
-		print 'Error'
-except:
-	SplitBy(annotated_file, split_type, Multiplex_perBC_flag=False)
-"""
+
+
+taxon_list = []
+locus_list = []
+for taxon_locus in LocusTaxonCountDict_clustd.keys():
+	taxon_list.append(taxon_locus[0])
+	locus_list.append(taxon_locus[1])
+taxon_list = set(taxon_list)
+locus_list = set(locus_list)
+
+
+
+count_output = open('purc_cluster_counts.xls', 'w')
+count_output.write('\n**Final clustered sequences per accession per locus**\n')
+log.write('\n**Final clustered sequences per accession per locus**\n')
+
+count_output.write('\t' + '\t'.join(locus_list) + '\n')	
+log.write('\t' + '\t'.join(locus_list) + '\n')	
+
+for each_taxon in set(taxon_list):
+	#print each_taxon, '\t',
+	count_output.write(each_taxon + '\t')		
+	log.write(each_taxon + '\t')		
+
+	for each_locus in locus_list:
+		try:
+			#print LocusTaxonCountDict_clustd[each_taxon, each_locus], '\t',
+			count_output.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
+			log.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
+		except:
+			#print '0', '\t',
+			count_output.write('0\t') 
+			log.write('0\t') 
+	#print
+	count_output.write('\n')		
+	log.write('\n')		
+
+#print 
+#print '\n**Allele/copy/cluster/whatever count by locus**'
+count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
+log.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
+
+# I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
+for each_locus in locus_list:
+	file_name = str(each_locus) + '_clustered.txt'
+	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
+		seq_no = len(parse_fasta(file_name))
+		#print '\t', each_locus, ':', seq_no
+		count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
+		log.write(str(each_locus) + '\t' + str(seq_no) + '\n')
+	except:
+		#print '\t', each_locus, ':', 0
+		count_output.write(str(each_locus) + '\t0\n')			
+		log.write(str(each_locus) + '\t0\n')			
 
 
 

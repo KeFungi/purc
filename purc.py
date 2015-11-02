@@ -33,9 +33,9 @@ logo = """
 usage = """
 You need to provide a configuration file.
 
-Usage: ./ppp.py configuration_file > out
-Example: ./ppp.py ppp_configuration.txt > summary.txt
-For more info, try: ./ppp.py -help
+Usage: ./purc.py configuration_file
+Example: ./purc.py ppp_configuration.txt 
+For more info, try: ./purc.py -help
 
 """
 
