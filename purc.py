@@ -1,25 +1,5 @@
 #!/usr/bin/env python
 
-#TODO - create a mode that just annotates (no splitting or clustering)
-
-# TODO - Maybe the secret would be to include "dummy" entries in the maps. Ie., if there's no groupB for a given
-# barcode, map groupB for that barcode to something like "MisMatch". Then they'll show up in the trees
-# etc and can be dealt with.
-
-# TODO re:mode 2. The naming of files and folders needs to get clean up. Currently this mode requires that the output folder
-# be already created (this is ok, I suppose), and that the input seqence file be named output_prefix + annotated.fa? It's a
-# little weirder than that -- when I had the Input_sequence_file set to PBR2_C_3_annotated.fa and the Output_prefix set to
-# splitByBC, I got the following error: No such file or directory: 'splitByBC_3_annotated.fa'. When I renamed the input seq
-# file to that, and stuck inside the splitByBC folder, it worked
-
-# TODO re:mode 3. Currently mode 2 creates subdirectories for each of the splits it makes, but mode 3 wants all the files
-# to be in a single directory. Do we want to fix this? Could leave it as is, with instructions..
-
-# TODO: add in a cleanUpFiles option in the .conf such that if it is set it yes it erases all the S1C10.999CH1 etc files when they are no longer needed
-# if we do this (perhaps worth doing regardless), we should get PUSSwhatever to spit out the settings used (specifically the clustering settings)
-# so that that information doesn't get lost (the researcher can go back and figure out what they did...)
-
-
 logo = """
 -------------------------------------------------------------
 |                             PPP                           |
@@ -966,39 +946,33 @@ else:
 	#print "\tSequence file:\t", raw_sequences, "\n\tLoci:\t", '\t'.join(locus_list)
 	log.write("Settings for this run:\n" + "\tSequence file:\t" + str(raw_sequences) + "\n\tLoci:\t" + '\t'.join(locus_list) + '\n')
 
-	if mode in [0,1]:
-		#print "\tMapping files:\t", '\t'.join(mapping_file_list)
-		#print "\tForward primers:\t", '\t'.join(Forward_primer)
-		#print "\tReverse primers:\t", '\t'.join(Reverse_primer)
-		log.write("\tMapping files: " + ', '.join(mapping_file_list) + '\n')
-		log.write("\tForward primers: " + ', '.join(Forward_primer) + '\n')
-		log.write("\tReverse primers: " + ', '.join(Reverse_primer) + '\n')
+	log.write("\tMapping files: " + ', '.join(mapping_file_list) + '\n')
+	log.write("\tForward primers: " + ', '.join(Forward_primer) + '\n')
+	log.write("\tReverse primers: " + ', '.join(Reverse_primer) + '\n')
 
-		if Dual_barcode:
-			log.write("\tExpecting barcodes at each end of the sequence\n")
-		else:
-			log.write("\tExpecting barcodes on forward primers only\n")
-		if Multiplex_per_barcode:
-			log.write("\tExpecting barcodes to be shared across multiple taxa (genera, etc)\n")
-		else:
-			log.write("\tExpecting each barcode to be used for only a single taxon\n")
-		if Search_ends_only:
-			log.write("\tBarcodes will be looked for in the terminal 25 bases of each sequence, only\n")
-		else:
-			log.write("\tThe full sequence will be searched for primers; internal primers may be found\n")
-		if Recycle_bc:
-			log.write('''\tIf the BLAST-based approach doesn't find a barcode in a particular sequence
-			the sequence will be re-searched using a Smith-Waterman pairwise alignment approach\n''')
-		else: 
-			log.write("\tPrimer-searching will be done using the BLAST-based approach, only\n")
-		if Recycle_chimera:
-			log.write("\tInter-locus chimeras will be split into their component pieces and fed into the pipeline\n")
-		else:
-			log.write("\tInter-locus chimeras will be removed from the analysis\n")
-	if mode != 2: # ie, some clustering will be done
-		log.write("\tSimilarity cut-off for clustering:\t" + str(clustID) + "\t" + str(clustID2) + "\t" + str(clustID3) + '\n')
-		log.write("\tCluster size for retention:\t" + str(sizeThreshold) + "\t" + str(sizeThreshold) + "\t" + str(sizeThreshold2) + '\n')
-		# may want to add more outputs here
+	if Dual_barcode:
+		log.write("\tExpecting barcodes at each end of the sequence\n")
+	else:
+		log.write("\tExpecting barcodes on forward primers only\n")
+	if Multiplex_per_barcode:
+		log.write("\tExpecting barcodes to be shared across multiple taxa (genera, etc)\n")
+	else:
+		log.write("\tExpecting each barcode to be used for only a single taxon\n")
+	if Search_ends_only:
+		log.write("\tBarcodes will be looked for in the terminal 25 bases of each sequence, only\n")
+	else:
+		log.write("\tThe full sequence will be searched for primers; internal primers may be found\n")
+	if Recycle_bc:
+		log.write('''\tIf the BLAST-based approach doesn't find a barcode in a particular sequence
+		the sequence will be re-searched using a Smith-Waterman pairwise alignment approach\n''')
+	else: 
+		log.write("\tPrimer-searching will be done using the BLAST-based approach, only\n")
+	if Recycle_chimera:
+		log.write("\tInter-locus chimeras will be split into their component pieces and fed into the pipeline\n")
+	else:
+		log.write("\tInter-locus chimeras will be removed from the analysis\n")
+	log.write("\tSimilarity cut-off for clustering:\t" + str(clustID) + "\t" + str(clustID2) + "\t" + str(clustID3) + '\n')
+	log.write("\tCluster size for retention:\t" + str(sizeThreshold) + "\t" + str(sizeThreshold) + "\t" + str(sizeThreshold2) + '\n')
 	
 
 
@@ -1008,27 +982,26 @@ else:
 
 raw_sequences = rename_fasta(raw_sequences)
 
-if mode in [0,1]: # Make blast databases and read the raw sequences
-	if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
-		shutil.rmtree(BLAST_DBs_folder)
-	os.makedirs(BLAST_DBs_folder)
-	os.chdir(BLAST_DBs_folder)
-	makeBlastDB('../' + refseq_filename, refseq_databasefile) # and one of the reference sequences
-	makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # one of the barcodes
-	#if Dual_barcode:
-		#makeBlastDB('../' + barcode_seq_filename2, barcode_databasefile + '2')
-	os.chdir('..')
-	
-	## Read sequences ##
-	sys.stderr.write('Reading sequences...\n')
-	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
-	count_total_input_sequences = len(SeqDict)
-	sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
+if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
+	shutil.rmtree(BLAST_DBs_folder)
+os.makedirs(BLAST_DBs_folder)
+os.chdir(BLAST_DBs_folder)
+makeBlastDB('../' + refseq_filename, refseq_databasefile) # and one of the reference sequences
+makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # one of the barcodes
+#if Dual_barcode:
+	#makeBlastDB('../' + barcode_seq_filename2, barcode_databasefile + '2')
+os.chdir('..')
 
-	## Make output folder ##
-	if os.path.exists(Output_folder): # overwrite existing folder
-		shutil.rmtree(Output_folder)
-	os.makedirs(Output_folder)
+## Read sequences ##
+sys.stderr.write('Reading sequences...\n')
+SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
+count_total_input_sequences = len(SeqDict)
+sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
+
+## Make output folder ##
+if os.path.exists(Output_folder): # overwrite existing folder
+	shutil.rmtree(Output_folder)
+os.makedirs(Output_folder)
 
 if mode == 0: # QC mode
 	## Check chimeras ##
@@ -1047,318 +1020,201 @@ if mode == 0: # QC mode
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
 	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
 
-if mode in [0,1]: # Run the full annotating, clustering, etc.	
-	## Remove barcodes ##
-	log.write('\n#Barcode Removal#\n')
-	if Dual_barcode:
-		sys.stderr.write('Removing dual barcodes...\n')
-		DeBarcoder_dual(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+## Remove barcodes ##
+log.write('\n#Barcode Removal#\n')
+if Dual_barcode:
+	sys.stderr.write('Removing dual barcodes...\n')
+	DeBarcoder_dual(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+else:
+	sys.stderr.write('Removing barcodes...\n')
+	if not Search_ends_only:
+		DeBarcoder(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict, Output_folder, Output_prefix)
 	else:
-		sys.stderr.write('Removing barcodes...\n')
-		if not Search_ends_only:
-			DeBarcoder(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict, Output_folder, Output_prefix)
+		DeBarcoder_ends(SeqDict, BLAST_DBs_folder + '/' + barcode_databasefile, Output_folder, Output_prefix, search_range=25)
+count_seq_w_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa')
+count_seq_wo_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa')
+count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa')
+sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have barcode\n')
+sys.stderr.write('\t' + str(count_seq_wo_bc) + ' sequences have no barcode\n')
+sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+
+if Recycle_bc:
+	sys.stderr.write('Looking for barcodes in the no-barcode sequences, using Smith-Waterman pairwise alignment...\n')
+	SeqDict_no_bc = SeqIO.index(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'fasta') # Read in the raw sequences as dictionary, using biopython's function
+	count_seq_recycled = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
+	sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
+log.write('\t...done\n\n')
+
+## Remove primers ##
+log.write('#Primer Removal#\n')
+sys.stderr.write('Removing primers...\n')
+primer_trimmed_file = Output_prefix + '_2_pr_trimmed.fa'
+doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', OutFile = Output_folder + '/' + primer_trimmed_file)
+count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_pr_trimmed.fa')
+sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
+log.write('\t...done\n\n')
+
+## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
+log.write('#Sequence Annotation#\n')
+sys.stderr.write('Annotating seqs...\n')
+toAnnotate = primer_trimmed_file
+annoFileName = Output_prefix + '_3_annotated.fa'
+LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
+count_seq_annotated = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_annotated.fa')
+count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa')
+sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
+sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
+log.write('\t...done\n\n')
+
+## Move into the designated output folder ##
+os.chdir(Output_folder)
+
+## Split sequences into separate files/folders for each locus ##
+sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
+locusCounts = SplitBy(annotd_seqs_file = annoFileName, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
+
+## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
+sys.stderr.write('Clustering/dechimera-izing seqs...\n')
+log.write('#Sequence clustering/dechimera-izing#\n')
+all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
+	# folders) and they correspond to the counts for each.
+LocusTaxonCountDict_clustd = {}
+
+for each_folder in all_folders_loci: 
+	os.chdir(each_folder)
+	sys.stderr.write('\nWorking on: ' + each_folder + '...\n')
+	if verbose_level in [1,2]:
+		log.write('\nWorking on ' + str(each_folder) + ' ...\n')
+	AnnodDict = SeqIO.index(each_folder + ".fa", 'fasta') 
+	if len(AnnodDict) > 0: # ie, the file is not empty
+		if Multiplex_per_barcode:	
+			bcodeCounts = SplitBy(annotd_seqs_file = each_folder + ".fa", split_by = "barcode", Multiplex_perBC_flag = Multiplex_per_barcode)
+			all_folders_bcodes = bcodeCounts.keys()
 		else:
-			DeBarcoder_ends(SeqDict, BLAST_DBs_folder + '/' + barcode_databasefile, Output_folder, Output_prefix, search_range=25)
-	count_seq_w_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa')
-	count_seq_wo_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa')
-	count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa')
-	sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have barcode\n')
-	sys.stderr.write('\t' + str(count_seq_wo_bc) + ' sequences have no barcode\n')
-	sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+			taxonCounts = SplitBy(annotd_seqs_file = each_folder + ".fa", split_by = "taxon", Multiplex_perBC_flag = Multiplex_per_barcode)					
+			all_folders_bcodes = taxonCounts.keys()
 
-	if Recycle_bc:
-		sys.stderr.write('Looking for barcodes in the no-barcode sequences, using Smith-Waterman pairwise alignment...\n')
-		SeqDict_no_bc = SeqIO.index(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'fasta') # Read in the raw sequences as dictionary, using biopython's function
-		count_seq_recycled = DeBarcoder_SWalign(SeqDict_no_bc, barcode_seq_filename, Output_folder, Output_prefix, search_range=25)
-		sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
-	log.write('\t...done\n\n')
-
-	## Remove primers ##
-	log.write('#Primer Removal#\n')
-	sys.stderr.write('Removing primers...\n')
-	primer_trimmed_file = Output_prefix + '_2_pr_trimmed.fa'
-	doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', OutFile = Output_folder + '/' + primer_trimmed_file)
-	count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_pr_trimmed.fa')
-	sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
-	log.write('\t...done\n\n')
-
-	## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
-	log.write('#Sequence Annotation#\n')
-	sys.stderr.write('Annotating seqs...\n')
-	#if Multiplex_per_barcode:
-	#	sys.stderr.write('...each barcode contains multiple samples...')
-	toAnnotate = primer_trimmed_file
-	annoFileName = Output_prefix + '_3_annotated.fa'
-	LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
-	count_seq_annotated = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_annotated.fa')
-	count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa')
-	sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
-	sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
-	log.write('\t...done\n\n')
-
-	## Move into the designated output folder ##
-	os.chdir(Output_folder)
-
-	## Split sequences into separate files/folders for each locus ##
-	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
-	locusCounts = SplitBy(annotd_seqs_file = annoFileName, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
-
-	## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
-	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
-	log.write('#Sequence clustering/dechimera-izing#\n')
-	all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
-		# folders) and they correspond to the counts for each.
-	LocusTaxonCountDict_clustd = {}
-
-	for each_folder in all_folders_loci: 
-		os.chdir(each_folder)
-		sys.stderr.write('\nWorking on: ' + each_folder + '...\n')
-		if verbose_level in [1,2]:
-			log.write('\nWorking on ' + str(each_folder) + ' ...\n')
-		# Open the file with annotated sequences for that locus.This is a little awkward, but the file name is the same as the folder name (which is "each_folder" currently)
-		# with the addition of ".fa". This is set as the file handle in SplitsBy, and if changed there, needs to be changed here too
-		AnnodDict = SeqIO.index(each_folder + ".fa", 'fasta') 
-		if len(AnnodDict) > 0: # ie, the file is not empty
-			if Multiplex_per_barcode:	
-				bcodeCounts = SplitBy(annotd_seqs_file = each_folder + ".fa", split_by = "barcode", Multiplex_perBC_flag = Multiplex_per_barcode)
-				all_folders_bcodes = bcodeCounts.keys()
-			else:
-				taxonCounts = SplitBy(annotd_seqs_file = each_folder + ".fa", split_by = "taxon", Multiplex_perBC_flag = Multiplex_per_barcode)					
-				all_folders_bcodes = taxonCounts.keys()
-
-			for bcode_folder in all_folders_bcodes:
-				if verbose_level in [1,2]:
-					log.write("Working on " + bcode_folder + '\n')
-				os.chdir(bcode_folder)
-				
-				if verbose_level in [1,2]:
-					log.write("\tFirst clustering\n")
-					log.write("\nAttempting to sort: " + bcode_folder + ".fa\n")
-
-				sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
-				clustered1 = clusterIt(file = sorted_length, clustID = clustID, round = 1, verbose_level = verbose_level)
-
-				if verbose_level in [1,2]:
-					log.write("\tFirst chimera slaying expedition\n")
-				deChimered1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
-				
-				if verbose_level in [1,2]:
-					log.write("\tSecond clustering\n")
-				sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-				clustered2 = clusterIt(file = sorted_size1, clustID = clustID2, round = 2, verbose_level = verbose_level)
-				
-				if verbose_level in [1,2]:
-					log.write("\tSecond chimera slaying expedition\n")
-				deChimered2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
-				
-				if verbose_level in [1,2]:
-					log.write("\tThird clustering\n")
-				sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				clustered3 = clusterIt(file = sorted_size2, clustID = clustID3, round = 3, verbose_level = verbose_level)
-				
-				if verbose_level in [1,2]:
-					log.write("\tThird chimera slaying expedition\n")
-				deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
-
-				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
-				sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
-
-				try:
-					clustered_seq_file = parse_fasta(sorted_size3)
-					for each_seq in clustered_seq_file:
-						taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
-						
-						try:
-							LocusTaxonCountDict_clustd[taxon_name, each_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-							# The locus names are the same as each_folder
-						except:
-							LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
-				except:
-					if verbose_level in [1,2]:
-						log.write(str(sorted_size3) + 'is an empty file\n')
-
-				os.chdir("..") # To get out of the current barcode folder and ready for the next one
-		os.chdir("..") # To get out of the current locus folder and ready for the next one
-	log.write('\t...done\n\n')	
-
-	## Put all the sequences together ##
-	sys.stderr.write('\rPutting all the sequences together......\n\n')
-	for each_folder in all_folders_loci: # Looping through each of the locus folders
-		outputfile_name = Output_prefix + '_4_' + str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
-		outputfile = open(outputfile_name, 'w')
-		os.chdir(each_folder)
-		bcodesForThisLocus = glob.glob("*")
-		#print "glob thinks there are these barcode folders present: ", bcodesForThisLocus, "\n\n"
-		for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
-			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
-				os.chdir(bcode_folder)
-				files_to_add = glob.glob("*Ss3.fa")
-				for file in files_to_add: 
-					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
-				os.chdir('..')
-		os.chdir('..')
-		outputfile.close()
-		
-	## Clean-up the sequence names ##
-	#log.write("Cleaning up the file names\n")
-	sys.stderr.write("Cleaning up the file names\n")
-
-	fastas = glob.glob("*_4_*.txt")
-	for file in fastas:
-		#log.write("Cleaning up the sequence names in " + str(file) + "\n")
-		fasta_cleaned = open(str(file).replace(".txt", "_renamed.fa"), 'w') # Make a new file with .fa instead of .txt
-		parsed = parse_fasta(file)
-		for seq in parsed:
-			seq.id = re.sub(r"seqs=\d*", r"", seq.id)
-			seq.id = re.sub(r"ccs.ee=[\d\.]*", r"", seq.id)
-			seq.id = seq.id.replace("centroid=", "").replace(";", "").replace("/","_")
-			fasta_cleaned.write(str('>' + seq.id + "\n" + seq.seq + "\n"))
-		fasta_cleaned.close()
-
-
-if mode == 2: # Just split the seqs
-	annoFileName = Output_prefix + '_3_annotated.fa'
-	log.write("The file to be split is " + str(annoFileName) + '\n')
-	log.write("And it should be split by " + str(split_type) + '\n')
-	log.write("And it should be in " + str(Output_folder) + '\n')
-
-	#os.mkdir(Output_folder)
-	os.chdir(Output_folder)
-	splits_count_dict = SplitBy(annotd_seqs_file = annoFileName, split_by = split_type, Multiplex_perBC_flag = Multiplex_per_barcode)
-	os.chdir("..")
-	if verbose_level == 3:
-		log.write("Counts: \n")
-		for each_split in splits_count_dict:
-			log.write(str(each_split) + '\t' + str(splits_count_dict[each_split]) + '\n')
-
-if mode == 3: # Just do some clustering
-	os.chdir(Output_folder)
-	tocluster = glob.glob("*") # Will attempt to cluster all files (and folders!) in the Output_folder directory
-	log.write("going to try to cluster these files: " + str(tocluster) +'\n')
-	for thisfile in tocluster:
-				
-		log.write("\nAttempting to sort sequences in: " + str(thisfile) + '\n')
-		log.write("\tFirst clustering" + '\n')
-
-		outFile = sortIt_length(file = thisfile, verbose_level = verbose_level)
-		outFile = clusterIt(file = outFile, clustID = clustID, round = 1, verbose_level = 0)
-		
-		# log.write("Before first chimera hunt, outFile is", str(outFile)
-
-		log.write("\tFirst chimera slaying expedition" + '\n')
-		outFile = deChimeIt(file = outFile, round = 1, verbose_level = 0)
-		
-		log.write("\tSecond clustering" + '\n')
-		outFile = sortIt_size(file = outFile, thresh = sizeThreshold, round = 1, verbose_level = 0)
-		outFile = clusterIt(file = outFile, clustID = clustID2, round = 2, verbose_level = 0)
-		
-		log.write("\tSecond chimera slaying expedition" + '\n')
-		outFile = deChimeIt(file = outFile, round = 2, verbose_level = 0) 
-		
-		log.write("\tThird clustering" + '\n')
-		outFile = sortIt_size(file = outFile, thresh = sizeThreshold, round = 2, verbose_level = 0)
-		outFile = clusterIt(file = outFile, clustID = clustID3, round = 3, verbose_level = 0)
-		
-		log.write("\tThird chimera slaying expedition" + '\n')
-		outFile = deChimeIt(file = outFile, round = 3, verbose_level = 0) 
-
-		outFile = sortIt_size(file = outFile, thresh = sizeThreshold2, round = 3, verbose_level = 0)
-
-	## Cleaning seqs and getting them into locus-specific files ##
-	tosummarize = glob.glob("*Ss3.fa")
-	LocusTaxonCountDict_clustd = {}
-	
-	loci = []
-	for each_file in tosummarize:
-		thisfasta = parse_fasta(each_file)
-		# Making the output file name from the first four underscore-separated elements of the original file name, 
-		# and sticking them back together with underscores
-		outFileName = "_".join(each_file.split("_")[0:4]) + "_clean.fa"
-		fasta_cleaned = open(outFileName, 'w') 
-		for each_seq in thisfasta:
-			taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;	
-			locus_name = str(each_seq.id).split("|")[1]
+		for bcode_folder in all_folders_bcodes:
+			if verbose_level in [1,2]:
+				log.write("Working on " + bcode_folder + '\n')
+			os.chdir(bcode_folder)
 			
-			if not locus_name in loci: # storing the loci that are present in a list, so that I can loop over it later
-				loci.append(locus_name)
+			if verbose_level in [1,2]:
+				log.write("\tFirst clustering\n")
+				log.write("\nAttempting to sort: " + bcode_folder + ".fa\n")
+
+			sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
+			clustered1 = clusterIt(file = sorted_length, clustID = clustID, round = 1, verbose_level = verbose_level)
+
+			if verbose_level in [1,2]:
+				log.write("\tFirst chimera slaying expedition\n")
+			deChimered1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
+			
+			if verbose_level in [1,2]:
+				log.write("\tSecond clustering\n")
+			sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
+			clustered2 = clusterIt(file = sorted_size1, clustID = clustID2, round = 2, verbose_level = verbose_level)
+			
+			if verbose_level in [1,2]:
+				log.write("\tSecond chimera slaying expedition\n")
+			deChimered2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
+			
+			if verbose_level in [1,2]:
+				log.write("\tThird clustering\n")
+			sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
+			clustered3 = clusterIt(file = sorted_size2, clustID = clustID3, round = 3, verbose_level = verbose_level)
+			
+			if verbose_level in [1,2]:
+				log.write("\tThird chimera slaying expedition\n")
+			deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+
+			# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
+			sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
 
 			try:
-				LocusTaxonCountDict_clustd[taxon_name, locus_name] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+				clustered_seq_file = parse_fasta(sorted_size3)
+				for each_seq in clustered_seq_file:
+					taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
+					
+					try:
+						LocusTaxonCountDict_clustd[taxon_name, each_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+						# The locus names are the same as each_folder
+					except:
+						LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
 			except:
-				LocusTaxonCountDict_clustd[taxon_name, locus_name] = 1
+				if verbose_level in [1,2]:
+					log.write(str(sorted_size3) + 'is an empty file\n')
 
-			each_seq.id = re.sub(r"seqs=\d*", r"", each_seq.id)
-			each_seq.id = re.sub(r"ccs;ee=[\d\.]*", r"", each_seq.id)
-			each_seq.id = each_seq.id.replace("centroid=", "").replace(";", "")
-			fasta_cleaned.write(str('>' + each_seq.id + "\n" + each_seq.seq + "\n"))
-		fasta_cleaned.close()
+			os.chdir("..") # To get out of the current barcode folder and ready for the next one
+	os.chdir("..") # To get out of the current locus folder and ready for the next one
+log.write('\t...done\n\n')	
 
-	## Put all the sequences together ##
-	sys.stderr.write('\nPutting all the sequences together......\n\n')
-	cleanfiles = glob.glob("*_clean.fa")
-	outputfiles = {}
-
-	for locus in loci: # created the "loci" list in the summarizing loop, above
-		outputfile_name = "_" + str(locus) + ".txt"
-		outputfiles[locus] = open(outputfile_name, 'w')
-	for cleanfile in cleanfiles:
-		#I thnk I've got this fixed now, but keeping these comments here for now in case I missed something
-		# locus = str(cleanfile).split("_")[-2] # find out what locus the file contains
-		
-		# # This is messing up because the *_clean.fa file name, when clustering data that has been split by 
-		# # group or barcode etc, doesn't contain the locus name
-		# # TODO - fix this. What happens if I attempt to cluster a group that contains multiple loci?
-		# shutil.copyfileobj(open(cleanfile,'rb'), outputfiles[locus]) # Add each file to the right output file
-
-		sequences = parse_fasta(cleanfile)
-		for eachSeq in sequences:
-			locus = eachSeq.id.split("|")[1]
-			SeqIO.write(eachSeq, outputfiles[locus], "fasta")
-
-	for thisfile in outputfiles:
-		outputfiles[thisfile].close()
-
+## Put all the sequences together ##
+sys.stderr.write('\rPutting all the sequences together......\n\n')
+for each_folder in all_folders_loci: # Looping through each of the locus folders
+	outputfile_name = Output_prefix + '_4_' + str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
+	outputfile = open(outputfile_name, 'w')
+	os.chdir(each_folder)
+	bcodesForThisLocus = glob.glob("*")
+	#print "glob thinks there are these barcode folders present: ", bcodesForThisLocus, "\n\n"
+	for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
+		if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
+			os.chdir(bcode_folder)
+			files_to_add = glob.glob("*Ss3.fa")
+			for file in files_to_add: 
+				shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
+			os.chdir('..')
+	os.chdir('..')
+	outputfile.close()
 	
+## Clean-up the sequence names ##
+sys.stderr.write("Cleaning up the file names\n")
+
+fastas = glob.glob("*_4_*.txt")
+for file in fastas:
+	#log.write("Cleaning up the sequence names in " + str(file) + "\n")
+	fasta_cleaned = open(str(file).replace(".txt", "_renamed.fa"), 'w') # Make a new file with .fa instead of .txt
+	parsed = parse_fasta(file)
+	for seq in parsed:
+		seq.id = re.sub(r"seqs=\d*", r"", seq.id)
+		seq.id = re.sub(r"ccs.ee=[\d\.]*", r"", seq.id)
+		seq.id = seq.id.replace("centroid=", "").replace(";", "").replace("/","_")
+		fasta_cleaned.write(str('>' + seq.id + "\n" + seq.seq + "\n"))
+	fasta_cleaned.close()
+
 
 #### Producing a summary #### 
 log.write('#Run Summary#\n\n')
-if mode != 2: # Need to decide what sort of summary would be appropriate if just splitting
-	count_output = open(Output_prefix + '_5_counts.xls', 'w')
-	count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
-	log.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
-	if mode == 0:
-		count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
-		log.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
-	if mode in [0,1]:
-		count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
-		count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
-		count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
-		count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
-		count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
-		
-		log.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
-		log.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
-		log.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
-		log.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
-		log.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+count_output = open(Output_prefix + '_5_counts.xls', 'w')
+count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
+log.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
+if mode == 0:
+	count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
+	log.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
 
-	log.write("\n**Raw reads per accession per locus**\n")
-	count_output.write('\n**Raw reads per accession per locus**\n')
-	taxon_list =[]
+count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
+count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
+count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+
+log.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+log.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
+log.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+log.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
+log.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+
+log.write("\n**Raw reads per accession per locus**\n")
+count_output.write('\n**Raw reads per accession per locus**\n')
+taxon_list =[]
 
 # getting a list of all the taxa with sequences, from the count dictionary
 # Using the counts of unclustered sequences so as to not miss any taxa
-if mode in [0,1]:
-	for i in range(0,len(LocusTaxonCountDict_unclustd)): 
-	# The keys for this dictionary are two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
-		if not LocusTaxonCountDict_unclustd.keys()[i][0] in taxon_list:
-			taxon_list.append(LocusTaxonCountDict_unclustd.keys()[i][0])
-if mode == 3:
-	print
-	# do something
-	#TODO LocusTaxonCountDict_unclustd doesn't exist in mode 3, but we'd still like to summarize. How to do so?
+for i in range(0,len(LocusTaxonCountDict_unclustd)): 
+# The keys for this dictionary are two-part lists, e.g., [('C_mem_6732', 'IBR'), ('C_mem_6732', 'PGI'), ('C_dou_111', 'IBR')]
+	if not LocusTaxonCountDict_unclustd.keys()[i][0] in taxon_list:
+		taxon_list.append(LocusTaxonCountDict_unclustd.keys()[i][0])
 
-#print '\t', '\t'.join(locus_list)
 count_output.write('\t' + '\t'.join(locus_list) + '\n')
 log.write('\t' + '\t'.join(locus_list) + '\n')
 for each_taxon in set(taxon_list): 
@@ -1367,50 +1223,33 @@ for each_taxon in set(taxon_list):
 	log.write(each_taxon + '\t')
 	for each_locus in locus_list:
 		try:
-			#print LocusTaxonCountDict_unclustd[each_taxon, each_locus], '\t', 
 			count_output.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
 			log.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
 		except:
-			#print '0', '\t', 
 			count_output.write('0\t')
 			log.write('0\t')
-	#print 
 	count_output.write('\n')
 	log.write('\n')
 
-#print 
-#print "\n**Final clustered sequences per accession per locus**"
 count_output.write('\n**Final clustered sequences per accession per locus**\n')
 log.write('\n**Final clustered sequences per accession per locus**\n')
-
-#print '\t', '\t'.join(locus_list)
 count_output.write('\t' + '\t'.join(locus_list) + '\n')	
 log.write('\t' + '\t'.join(locus_list) + '\n')	
-
 for each_taxon in set(taxon_list):
-	#print each_taxon, '\t',
 	count_output.write(each_taxon + '\t')		
 	log.write(each_taxon + '\t')		
-
 	for each_locus in locus_list:
 		try:
-			#print LocusTaxonCountDict_clustd[each_taxon, each_locus], '\t',
 			count_output.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
 			log.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
 		except:
-			#print '0', '\t',
 			count_output.write('0\t') 
 			log.write('0\t') 
-	#print
 	count_output.write('\n')		
 	log.write('\n')		
 
-#print 
-#print '\n**Allele/copy/cluster/whatever count by locus**'
 count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 log.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
-
-# I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
 for each_locus in locus_list:
 	file_name = Output_prefix + '_4_' + str(each_locus) + '_clustered.txt'
 	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
@@ -1422,26 +1261,12 @@ for each_locus in locus_list:
 		#print '\t', each_locus, ':', 0
 		count_output.write(str(each_locus) + '\t0\n')			
 		log.write(str(each_locus) + '\t0\n')			
-#print
 
 ## Aligning the sequences ##
-if Align: # Aligning can be turned on/off in the configuration file
-	fastas = glob.glob("_*.fa")
-	""" If you want to align the versions that haven't had their names cleaned up (ie, still have info
-		on the expected number of errors, etc., change the glob to operate on _*.txt"""
+if Align == 1: # Aligning can be turned on/off in the configuration file
+	fastas = glob.glob("*_renamed.fa")
 	for file in fastas:
-		#print "Aligning ", file, "\n"
 		sys.stderr.write("Aligning " + file + "\n")
 		log.write("Aligning " + file + "\n")
 		outFile = muscleIt(file, verbose_level)
 	
-# 	## Aligning the sequences ##
-# if Align: # Aligning can be turned on/off in the configuration file
-# 	fastas = glob.glob("_*")
-# 	for file in fastas:
-# 		print "Aligning ", file, "\n"
-# 		sys.stderr.write("Aligning " + file + "\n")
-# 		muscleIt(file, verbose_level)
-
-	
-
