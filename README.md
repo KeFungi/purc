@@ -1,9 +1,9 @@
 # PURC: Pipeline for Untangling Reticulate Complexes
 
 ## **Overview** ##
-PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), and is geared toward analyzing polyploid species complexes. 
+PURC is a pipeline for extracting alleles from amplicon sequencing data (PacBio, Illumina,...etc), de-multiplexing them (labeling each sequence with its locus and source sample), and cleaning them (clustering sequences, removing chimeras). It is geared toward analyzing polyploid species complexes; the final output of a full run includes an alignment for each locus with each homeolog or allele sequence in the amplicon data labeled with the source sample information and amount of coverage. 
 
-Workflow for PacBio amplicon seq:
+Rough outline of PURC's workflow:
 
 * Check concatemers and split them if requested (more on concatemers [here](https://github.com/PacificBiosciences/cDNA_primer/wiki/Artificial-concatemers,-PCR-chimeras,-and-fusion-genes))
 * Identify barcodes and remove them
