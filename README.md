@@ -6,7 +6,7 @@ PURC is a pipeline for extracting alleles or homeologs from amplicon sequencing 
 PURC allows users to extract and analyze all the copies of a given locus present in an amplicon pool, so is particularly useful in cases such as the study of polyploid complexes or large gene families, which were historically tractable only via time- and expense-intensive cloning approaches. Within a single run users can analyse as many accessions as they like, limited only by the desired coverage/allele and the number of sequences that can be uniquely linked back to their source samples. PURC can perform this linking using barcode sequences, locus identity, or phylogenetic information. For example, within a single run an individual barcode can be used multiple times if the locus is different, or if the accessions can be distinguished phylogenetically (i.e., of different genera or other clades that can be distinguished using BLAST). While it is most useful in cases where multiple copies of fairly long sequences have been amplified from individual accessions, it also (when used on PacBio sequencing data) provides considerable cost- and time savings for sequencing classic "single-copy" markers, such as those from the plastid or mitochondrion.
 
 
-Rough outline of PURC's workflow:
+### Rough outline of PURC's workflow: ###
 
 * Optional: scan for concatemers and split them into their component sequences (more on concatemers [here](https://github.com/PacificBiosciences/cDNA_primer/wiki/Artificial-concatemers,-PCR-chimeras,-and-fusion-genes))
 * Identify and remove barcode sequences
@@ -30,7 +30,7 @@ If you get "permission denied" error, then try this first:
 chmod +x install_dependencies.sh
 ```
 
-There are however three other dependencies that you have to install yourself:
+There are three other dependencies that you have to install yourself:
 
 * [Python](https://www.python.org) - Version 2.7 or later (within Python 2 -- we have not tested purc on Python 3, and it will probably not work).
 * [BioPython](http://biopython.org/wiki/Main_Page) - Version 1.6 or later. You need to have [Numpy](http://www.numpy.org) in place before installing BioPython. Please refer to BioPython [manual](http://biopython.org/DIST/docs/install/Installation.htmlall/Installation.html) for installation instruction.
@@ -50,7 +50,7 @@ PURC requires the following files:
         >BC03
         TATCTATCGTATACGC
 
-* **Reference sequence file** - In fasta format. PURC uses these references to assign reads to loci (and optionally to phylogenetic group). Each reference seq name must specify the locus ('locus=') that this sequence represents; you can optionally note where the sequence came from ('ref_taxon='). The ref_taxon information can contain anything (as long as no spaces are special characters are included) and is not used by PURC--it is only useful in allowing users to keep track of the sequences in their reference file more easily. Each designation is separated by /. For example:
+* **Reference sequence file** - In fasta format. PURC uses these references to assign reads to loci (and optionally to phylogenetic group). Each reference seq name must specify the locus ('locus=') that this sequence represents; you can optionally note where the sequence came from ('ref_taxon='). The ref_taxon information can contain anything (as long as no spaces are special characters are included) and is not used by PURC--it is only useful in allowing users to keep track of the sequences in their reference file more easily. Each designation is separated by a backslash ("/"). For example:
 
         >locus=ApP/ref_taxon=Cystopteris_bulbifera
         TGCCACACTGGTGAGTATTATCTTACTCTTTTTCTTGGTGAGAAAGGGTAGTGTGCATGGCATATTCATGTCAACCCCCGCTTGGGACCGGGGGCGACAAGGATGTTACTGTTGGGTGATACCTGTGATGCCCAATTGGAGCAAGAGTAAAATCAACTTTGTAAATATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTTAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAACGCTTACGATTTGCCTGCAAGGTAAAAGTTGAACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAACATATTGACTACTTTATCAATGGAATTTGAGCAGCTATCACATGTCGATGTTTATTTTGAGGCAAGGGGTTCTTGTTTGCATGCGGTTGTAGAAATGTCTTATCACATTTCTATTTGGGTTTTTTGACATTGCTATTTTTGCATAAATGCTAAGTTACAAATTAGAATTGTTTACTTGTTTGTTTGGAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTCATTTGATGATTGCATGCGTACACCTTTATGTTCATTTAGGCTATGTTTTGTCAGCTCACAAATTTTTGATGTTAAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTTAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTTTTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
@@ -58,7 +58,7 @@ PURC requires the following files:
         AAAGTAATTTGATGCGTTTTTTTGGTGAAGTCAGTGCATTTTATTCTTTGAAATGGTGAGATCTTATGTTTGCAATCCACTGTTTACCAGGTAGTCCACCAGGAGTTTGGAATTGCCGAGGCCCTCATGACAACTGTGCATGCTACCACTGGTACCGTATTGTCTCCAGCCTCTTTGATTCTGATGTGCTGTAGTTTATACAGAGGCTGGAATTGAATACCCTTGTCATGACTAGCTCTTATATGTCGGTATTTGTGCTTCCAGCTACTCAAAAGACTGTGGATGGTCCCTCTGGCAAAGATTGGCGGGGTGGCCGAGGTGCTGGGCAGAATATCATTCCGAGCTCAACCGGTGCTGCCAAGGTACACTGCTAACTTAACCAAAACCTAAAACATCCTACTAATGTGGTGGCTATTTTATTGCCTTGTAAACATGTTGGTCTTTGTGGTAAACTGCAGGCAGTAGGAAAGGTGCTTCCAGAGTTAAATGGAAAGCTCACTGGAATGGCATTCCGAGTGCCTACCCCCAATGTCTCAGTTGTGGACTTGACTTGCCGCCTAGAGAAAGGGGCATCATACGATACCATCAAAGCAGCTGTGAAGTATGAACATTACATGCTCTAGTCATTGAAACAATTTTTTTTGTCTAAATTAATTTATTCTACTGATGCTGTCTAATTTTTAGCCTACCTGAAAGCTACATCTAATGTGATTTATTACACTTTTTGTAGGGCTGCATCTGAAGGTCCCATGAAAGGAATTCTGGGATACACTGAAGATGATGTTGTATCCACGGACTTTGTCGGTGATGAAAGGTAACTTCCACTTTAGAATTGCAGAAGGTAGTTTCAGTCATGCTCGCTCAAATTCCTCTAACGGTGGACTGGGTTGTTTGCAGATCAAGCATATTTGATGCTAAAGCAGGCATTGCCCTCAGTGATCGGTTTGTAAAGCTTGTTTCGT
 	
 
-	When sequences from multiple specimens are pooled together and share the same barcode, PURC can demultiplex them using user-provided "group" information. A reference sequence must be provided for each group, and the groups must be sufficiently phylogenetically distinct that BLAST can match each sequences to a reference sequences from the appropriate group. You need to supply the group information in the reference sequences ('group='). In this example, group "A" is the genus Cystopteris, group "B" is the genus Acystopteris, and group "C" is Gymnocarpium:
+	When sequences from multiple specimens are pooled together and share the same barcode, PURC can demultiplex them using user-provided "group" information. A reference sequence must be provided for each group, and the groups must be sufficiently phylogenetically distinct that BLAST can match each sequences to a reference sequences from the appropriate group. You need to supply the group information in the reference sequences ('group='). In this example, group "A" is the genus *Cystopteris*, group "B" is the genus *Acystopteris*, and group "C" is *Gymnocarpium*:
 
         >locus=ApP/group=A/ref_taxon=Cystopteris_fragilis_Utah
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGCATGGCATATTCACGTCAGAATCCAAGACCCCCGCTTGGGGCCGAGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTCGAGCAGCTATCACATGTTGATGTTTTTTTTTGAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTGTATTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
@@ -67,19 +67,19 @@ PURC requires the following files:
         >locus=ApP/group=C/ref_taxon=Gymnocarpium_dryopteris_MA
         TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGTATGGCATATTCACGTCATAATCCAAGACCCCCGCTTGGGGCTGGGGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTTGAGCAGCTATCACATGTTGATGTTTTTTTTTCAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGGGTTTTTTGACATGGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGCTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTTTATTTCTTTTGGATTAAAGTTTATCTCCCTTGTATTTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT
 
-* **Map files** - tab delimited text file, one for each locus. This tells PURC the correspondence between barcode and specimen. The first column is the barcode (has to be identical to the barcode seq file), and the second is the specimen name. For example:
+* **Map files** - One tab-delimited text file for each locus. These "maps" allow PURC to match sequences to the source specimens, based on the barcode (and the group, if used). The first column is the barcode (the barcode names need to be identical to those listed in the barcode sequence file), and the second is the specimen name. For example:
 
         BC01	Cystopteris_fragilis_Utah
         BC02	Cystopteris_fragilis_Arizona
         BC03	Cystopteris_fragilis_Taiwan
         
-	When one barcode contains multiple specimens, you need to add the group designation in the second column. In this case, one Acystopteris and one Cystopteris specimen both were labeled by barcode 1, but they are divergent enough that PURC can pull them apart (based on the reference sequence file):
+	When one barcode is used for multiple specimens, you need to add the group designation in the second column. In this case, one *Acystopteris* and one *Cystopteris* specimen were labeled with barcode 1, but they are divergent enough that PURC can pull them apart (based on the reference sequence file):
 	        
         BC01	A	Acystopteris_japonica_Taiwan
         BC01	B	Cystopteris_fragilis_Utah
         BC02	A	Acystopteris_japonica_Japan
 
-    If two barcodes are used (one on each primer), then the first two columns are the barcodes and the third the specimen names:
+    Again, in this case PURC will go through each sequences, find out what barcode it has, and what "group" it matches to (based on the reference sequence file described above). And it will then use that barcode and group information to find the corresponding taxon name using the map, above. If two barcodes are used (one on each primer), then the first two columns in the map files are the barcodes and the third the specimen names:
 
     	BCF1	BCR1	Cystopteris_fragilis_Utah
     	BCF2	BCR1	Cystopteris_fragilis_Arizona
@@ -87,26 +87,26 @@ PURC requires the following files:
     	BCF2	BCR2	Cystopteris_fragilis_AMagicPlace
 
 ### Step 3: run ###
-PURC can be run by: 
+PURC can be run by navigating to the directory that contains the configuration, barcode, reference sequence, and map files, and calling the program from there: 
 ```
 #!shell
 /Users/fayweili/Programs/purc/purc.py purc_configuration.txt
 ```
-This assumes that the purc directory is in /Users/fayweili/Programs. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you can run by: 
+This assumes that the purc script (and Dependencies directory) is in /Users/fayweili/Programs/purc. **DO NOT** copy purc.py to your working directory; instead, call purc.py from there. Alternative, you can add the purc directory into your PATH, and in this case, you can run by: 
 ```
 #!shell
 purc.py purc_configuration.txt
 ```
 
 ### Example 1 - PacBio ###
-In this dataset, four loci were amplified from 30 Cystopteris specimens. All the specimens were labeled with different barcodes, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because one barcode corresponds to one specimen, in the configuration file we specify: 
+In this dataset, four loci were amplified from 30 *Cystopteris* specimens. Each specimen was labeled with a unique barcode, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because each barcode corresponds to a single specimen, in the configuration file we specify: 
 ```
 Multiplex_per_barcode	= 0
 ```
 
 
 ### Example 2 - PacBio ###
-In this dataset, four loci were amplified from xx Cystopteris, xx Acystopteris and xx Gymnocarpium specimens. Because we don't have enough barcoded primers, we multiplex each barcode to cover one Cystopteris, one Acystopteris and one Gymnocarpium. For example, G_dry_7000, A_ten_4225 and C_mil_6761 are all labeled as BC03, but were assigned as different "groups" (A, B, C) in the map and reference files. In the configuration file we need to specify: 
+In this dataset, four loci were amplified from xx *Cystopteris*, xx *Acystopteris* and xx *Gymnocarpium* specimens. Because we didn't have enough barcoded primers available, we applied each barcode to one accession of each genus (so each barcode is applied to three different accessions). For example, G_dry_7000, A_ten_4225 and C_mil_6761 were all labeled with BC03, but were assigned as different "groups" (A, B, C) in the map files (and the appropriate reference sequences for each group were added to the reference sequence file). In the configuration file we need to specify: 
 ```
 Multiplex_per_barcode	= 1
 ```
@@ -118,13 +118,13 @@ BC03	B	A_ten_4225
 BC03	C	C_mil_6761
 ...
 ```
-Also for each group of each locus, we need to include the reference sequences, so that purc can tell them apart:
+Also for each group of each locus, we need to include the reference sequences, so that PURC can tell them apart:
 ```
->locus=ApP/group=A/ref_taxon=Gymnocarpium
+>locus=ApP/group=A/ref_taxon=yourFavGymnocarpium
 TGCCACACTGGTGAGTATTGTCTTACTTTTTGTTATCCTTTTTCTTGGTGAGAAAGGGTACTGTGCATGGCATATTCACGTCAGAATCCAAGACCCCCGCTTGGGGCCGAGGGTGACAAGGATGTTTCTGTTGGGTGATACCTGTGATGCCAGTTGGAGCAAGAGTAAAATCAACTTTGTAAACATCATCTATTTGAAGGATTAACAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAATGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAATATATTGACTACTTCATGCATGGAATTCGAGCAGCTATCACATGTTGATGTTTTTTTTTGAGGCGAGGGGTTCTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATGTGCTATTTTTGCATAAATGCTACGTTACAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTTAGTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTTAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGCTCAAAATTAAAGGAGAGTGTATTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT-------------------------------------------------------------------------------------
->locus=ApP/group=B/ref_taxon=Acystopteris
+>locus=ApP/group=B/ref_taxon=tokenAcystopteris
 TGCCACACTGGTGAGTATTGTCTTACTCTTTTTCTTGGTGAGAAAGGGTAAAGTGCATGGCATATTCACGTCAACCCCCGCTTGGGGCCGGGAGTGACAAGGATGTTACTGTTGGGTGATACCTGTGATGCCCAGTTGGAGCAGGAGTAAAATCGACTTTGTAAATATCATTTATTTGAGGGATTAACAGACATGGTATTTAAATTCCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAACGCTTACGATTTGCCTGCAAGGTAAAAGTTGCACAATGCTCAAGGTGGGGCTAGTTCTTGTCACGTAAGCAAGGATCATCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAACATATTGACCACTTCATCCATGGAATTTGAGCAGCTATCACATGTCGATGTTTTTTTTTGAGGCGAGGGGTTCTTGTTTGCATGTGGTTGTAGAAATGTTTTATCACATTTCTATTCGGATTTTTTGACATGGCTATTTTTGCATAAATGCTAAGTTCCAAATTAGAATTGTTTACTTGTTTGTTTGTAGGAAATCTCAAACGACTGTCTTTTGCTCTTGTATGCTCATTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGTTTTTGATGTTAAACCTAACATGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCATTGTTACCGATCTTGTTTAGAGACTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAAACAGATCAAAATTAAAGAGAGTTTTTTCCTTTTGGATTAAAGTTTATCTCCCTTGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT------------------------------------------------------------------------------------------
->locus=ApP/group=C/ref_taxon=Cystopteris1
+>locus=ApP/group=C/ref_taxon=CystopterisBoss
 TGCCACACTGGTGAGTATTATCTTACTCTTTTTCTTGGTGAGAAAGGGTAGTGTGCATGGCATATTCATGTCAACCCCCGCTTGGCACCGGGGGTGATAAGGATGTTACTGTTGGGTGATACCTGTGATGCCCAATTGGAGCAAATAGTAAAATCAACTTCGTAAATATCATTTATTTGAAGGATTAATAGACATGGTATTTAAATTCCTCTCACATTCAAAACAGGGTGGTTGCAGAACTGGTATGGCCAAAGTAACGAACGCTTACGATTTGCCTGCAAGGTAAAAGTTGAACAATGCTCAAGGTGGGGCTACTCCTTTTGTCACTTAAGCAAGGATCTTCAAGCATGTAAAATTATTCTCCCTCAACTTTGCTTTACAAAAGAAATTTAACATATTGACTACTTCATCCATGGAATTTGAGCAGCTACACATGTAGATGTTTTTTTTTTGAGGCAAGGGGTTCTTGTTTGCATGTGGTTGTAGAAATGTTTATCACATTTCTATTTGGGTCTTTTGACATGGCTATTTTTGCATAACTGCCAAGTTACAAATTAGAATTGTTCACTTGCTGTTTGTACGAAATCTCAATTGACTGTCTTTTGCTCTTGTATGCTCATTTGATGATTGCATGCGTACACCTTTATGTTCATTTCAGGCTATGTTTTGTCAGCTCACAAGATTTTGATGCTAAACCTAACGTGACAGGAAAGTTATACATACTGTTGGTCCAAGATATGCTGTAAAATATCATACAGCTGCAGAAAATGCTCTAAGTCGTTGCTACCGATCTTGTTTAGAGGCTTTGATTGACTTAGGCCTTCAAAGGTACCAGCTGCTTGTTTAACAGCTCAAAATTAAAGGAGAGTTTTTTCCTTTTGGATTAAAGTTTATCTCCCATGTAATTCTTGCAGCATTGCCCTGGGGTGTATTTACACAGAGTCTAAAGGCTAT---------------------------------------------------------------------------------------
 ...
 ```
