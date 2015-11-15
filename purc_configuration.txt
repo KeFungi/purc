@@ -5,6 +5,7 @@ in_Barcode_seq_file		= 2-barcodes.fasta		# Fasta file containing barcode names a
 in_RefSeq_seq_file		= 3-ref_sequences.fasta	# Fasta file containing reference names and sequences; the input for making blast database
 Output_prefix			= purc_run
 Output_folder			= purc_out
+Log_file				= log.txt
 
 [Loci]
 Locus_name				= ApP, GAP, IBR, PGI	# The order must be identical to that in Locus-barcode-taxon_map

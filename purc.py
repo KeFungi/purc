@@ -800,18 +800,14 @@ def muscleIt(file, verbose_level=0):
 
 
 ################################################ Setup ################################################
-log = open('purc_log', 'w')
-log.write(logo + '\n')
+
 if len(sys.argv) < 2:
 	sys.exit(usage)
 	
 elif sys.argv[1] in ['-help', '-h', '-citation']:
 	sys.exit(usage + citation)
 
-else:
-	#print "PURC called with: \n\t", sys.argv, "\n"
-	log.write("PURC called with: \n\t" + str(sys.argv) + "\n") 
-	
+else:	
 	try:
 		configuration = open(sys.argv[1], 'rU')
 	except:
@@ -839,6 +835,7 @@ else:
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt'
 	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
+	log_file = 'purc_log.txt'
 
 	## Read-in the parameters and settings ##
 	for line in configuration:
@@ -863,6 +860,8 @@ else:
 				barcode_databasefile = setting_argument		
 			elif setting_name == 'RefSeq_blastDB':
 				refseq_databasefile = setting_argument
+			elif setting_name == 'Log_file':
+				log_file = setting_argument
 			elif setting_name == 'Locus_name':
 				locus_list = setting_argument.upper().replace(' ', '').replace('\t', '').split(',') #needs the upper() now that LocusTaxonCountDict_unclustd has the loci in uppercase
 			elif setting_name == 'Locus-barcode-taxon_map':
@@ -870,15 +869,15 @@ else:
 			elif setting_name == 'Usearch':
 				Usearch = ppp_location + '/' + setting_argument
 				#print 'Usearch location: ', Usearch
-				log.write('Usearch location: ' + str(Usearch) + '\n')
+				#log.write('Usearch location: ' + str(Usearch) + '\n')
 			elif setting_name == 'Cutadapt':
 				Cutadapt = ppp_location + '/' + setting_argument
 				#print 'Cutadapt location: ', Cutadapt
-				log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
+				#log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
 			elif setting_name == 'Muscle':
 				Muscle = ppp_location + '/' + setting_argument
 				#print 'Muscle location: ', Muscle
-				log.write('Muscle location: ' + str(Muscle) + '\n')
+				#log.write('Muscle location: ' + str(Muscle) + '\n')
 			elif setting_name == 'clustID':
 				clustID = float(setting_argument)
 			elif setting_name == 'clustID2':
@@ -939,6 +938,13 @@ else:
 				else:
 					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
 
+	log = open(log_file, 'w')
+	log.write(logo + '\n')
+	log.write("PURC called with: \n\t" + str(sys.argv) + "\n") 
+	log.write('Usearch location: ' + str(Usearch) + '\n')
+	log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
+	log.write('Muscle location: ' + str(Muscle) + '\n')
+	
 	if Recycle_bc:
 		import swalign #so that users don't need to have this if not using this functionality
 
@@ -974,7 +980,6 @@ else:
 	log.write("\tSimilarity cut-off for clustering:\t" + str(clustID) + "\t" + str(clustID2) + "\t" + str(clustID3) + '\n')
 	log.write("\tCluster size for retention:\t" + str(sizeThreshold) + "\t" + str(sizeThreshold) + "\t" + str(sizeThreshold2) + '\n')
 	
-
 
 
 
