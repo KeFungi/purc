@@ -854,6 +854,8 @@ else:
 				mode = int(setting_argument)
 			elif setting_name == 'Input_sequence_file':
 				raw_sequences = setting_argument
+				if not os.path.isfile(raw_sequences):
+					sys.exit("Error: couldn't find " + raw_sequences)
 			elif setting_name == "Align":
 				Align = int(setting_argument)
 			elif setting_name == 'Output_prefix':
@@ -874,6 +876,9 @@ else:
 				locus_list = setting_argument.upper().replace(' ', '').replace('\t', '').split(',') #needs the upper() now that LocusTaxonCountDict_unclustd has the loci in uppercase
 			elif setting_name == 'Locus-barcode-taxon_map':
 				mapping_file_list = setting_argument.replace(' ', '').replace('\t', '').split(',')
+				for mapfile in mapping_file_list:
+					if not os.path.isfile(mapfile):
+						sys.exit("Error: couldn't find " + mapfile)
 			elif setting_name == 'Usearch':
 				Usearch = ppp_location + '/' + setting_argument
 				#print 'Usearch location: ', Usearch
@@ -908,8 +913,12 @@ else:
 				split_type = setting_argument				
 			elif setting_name == 'in_Barcode_seq_file':	
 				barcode_seq_filename = setting_argument
+				if not os.path.isfile(barcode_seq_filename):
+					sys.exit("Error: couldn't find " + barcode_seq_filename)
 			elif setting_name == 'in_RefSeq_seq_file':	
 				refseq_filename = setting_argument
+				if not os.path.isfile(refseq_filename):
+					sys.exit("Error: couldn't find " + refseq_filename)				
 			elif setting_name == 'Dual_barcode':
 				if setting_argument == '0':
 					Dual_barcode = False
