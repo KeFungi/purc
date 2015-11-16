@@ -54,6 +54,8 @@ import os
 import glob
 import subprocess
 import shutil
+import time
+import datetime
 from Bio import SeqIO
 
 def parse_fasta(infile):
@@ -801,6 +803,9 @@ def muscleIt(file, verbose_level=0):
 
 ################################################ Setup ################################################
 
+ts = time.time()
+time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
+
 if len(sys.argv) < 2:
 	sys.exit(usage)
 	
@@ -835,7 +840,7 @@ else:
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt'
 	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
-	log_file = 'purc_log.txt'
+	log_file = 'purc_log_' + time_stamp + '.txt'
 
 	## Read-in the parameters and settings ##
 	for line in configuration:
@@ -861,7 +866,10 @@ else:
 			elif setting_name == 'RefSeq_blastDB':
 				refseq_databasefile = setting_argument
 			elif setting_name == 'Log_file':
-				log_file = setting_argument
+				if setting_argument == '':
+					log_file = 'purc_log_' + time_stamp + '.txt'
+				else:
+					log_file = setting_argument
 			elif setting_name == 'Locus_name':
 				locus_list = setting_argument.upper().replace(' ', '').replace('\t', '').split(',') #needs the upper() now that LocusTaxonCountDict_unclustd has the loci in uppercase
 			elif setting_name == 'Locus-barcode-taxon_map':
