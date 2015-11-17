@@ -15,7 +15,7 @@ PURC allows users to extract and analyze all the copies of a given locus present
 * Cluster sequences and remove chimeric sequences, iteratively
 * Woop woop
 
-Note that we designed PURC for Mac OSX. We have not tested it on Linux or PCs.
+PURC can be ran on Mac OSX and Linux machines. Currently not compatible with PCs.
 
 ## **Quick Start** ##
 ### Step 1: setup ###
@@ -23,6 +23,11 @@ PURC consists of purc.py (and two other variations-- xx, xx--that we describe be
 ```
 #!shell
 ./install_dependencies.sh
+```
+For Linux machines, use:
+```
+#!shell
+./install_dependencies_linux.sh
 ```
 If you get "permission denied" error, then try this first:
 ```
