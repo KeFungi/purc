@@ -41,7 +41,7 @@ sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for tha
 
 [Dependencies]
 Usearch 				= Dependencies/usearch8.1.1756		# The name of (or path to) Usearch executable; Here use the executables come together with PURC
-Cutadapt				= Dependencies/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
+Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
 Muscle 					= Dependencies/muscle3.8.31			# The name of (or path to) Muscle executable; Here use the executables come together with PURC
 
 [Miscellaneous]

@@ -18,9 +18,6 @@ Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACA
 [PPP_Configuration]
 Mode					= 1		# 0: QC and then full run
 								# 1: Full run
-								# 2: Just split. PPP will take the (already annotated) Input_sequence_file and split it up by split_type
-								# 3: Just clustering, etc. PPP will take the file(s) in Output_folder and run clustering and chimera-killing on them		
-									#NOTE: for mode 3, ppp must be called from the folder that has Output_folder already in it (and the files need to already be in Output_folder)
 Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 								# 1: Each barcode contains multiple samples
 Dual_barcode			= 0		# 0: Barcodes only on one primer
@@ -43,7 +40,7 @@ sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for tha
 
 [Dependencies]
 Usearch 				= Dependencies/usearch8.1.1756		# The name of (or path to) Usearch executable; Here use the executables come together with PURC
-Cutadapt				= Dependencies/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
+Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
 Muscle 					= Dependencies/muscle3.8.31			# The name of (or path to) Muscle executable; Here use the executables come together with PURC
 
 [Miscellaneous]

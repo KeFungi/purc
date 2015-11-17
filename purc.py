@@ -820,7 +820,7 @@ else:
 	refseq_databasefile = 'refseq_blastdb'
 	Use_bundled_dependencies = True
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
-	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt'
+	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt_source/bin/cutadapt'
 	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
 	log_file = 'purc_log_' + time_stamp + '.txt'
 
