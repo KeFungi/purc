@@ -19,13 +19,10 @@ Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACA
 [PPP_Configuration]
 Mode					= 1		# 0: QC and then full run
 								# 1: Full run
-								# 2: Just split. PPP will take the (already annotated) Input_sequence_file and split it up by split_type
-								# 3: Just clustering, etc. PPP will take the file(s) in Output_folder and run clustering and chimera-killing on them		
-									#NOTE: for mode 3, ppp must be called from the folder that has Output_folder already in it (and the files need to already be in Output_folder)
 Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 								# 1: Each barcode contains multiple samples
 Dual_barcode			= 0		# 0: Barcodes only on one primer
-								# 1: Barcodes on both primers
+								# 1: Barcodes on both primers; in the current version Barcode_detection must set to 0
 Barcode_detection		= 1		# 0: Search barcode in entire sequences; will produce "ErrMidBC" flag if barcodes are not at the ends of the sequence 
 								# 1: Search barcode only at the ends of sequences
 Recycle_chimeric_seq	= 0		# 0: Do not recycle

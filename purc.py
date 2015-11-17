@@ -2,10 +2,11 @@
 
 logo = """
 -------------------------------------------------------------
-|                             PPP                           |
-|                 PacBio Polyploidy Pipeline                |
-|                        version 1.99                       | 
-|                                                           |
+|                            PURC                           |
+|        Pipeline for Untangling Reticulate Complexes       |
+|                        version 0.99                       | 
+|            https://bitbucket.org/crothfels/ppp            |
+|															|
 |                 Fay-Wei Li & Carl J Rothfels              |
 -------------------------------------------------------------
 """ 
@@ -73,6 +74,7 @@ def rename_fasta(infile):
 	return outfile
 
 def count_seq_from_fasta(infile):
+	"""Yep. Just return the sequence number from a fasta file"""
 	cmdLine = "grep '>' %s | wc -w" % infile
 	process = subprocess.Popen(cmdLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()	
@@ -88,13 +90,12 @@ def ReverseComplement(seq):
 	letters = [basecomplement[base] for base in letters] 
 	return ''.join(letters) 
 
-def makeBlastDB(inFileName, outDBname): #FWL do we need to include instructions for users to get the makeblastdb command to work?
-	"""makes a blast database from the input file"""
+def makeBlastDB(inFileName, outDBname): 
+	"""Makes a blast database from the input file"""
 	makeblastdb_cmd = 'makeblastdb -in %s -dbtype nucl -parse_seqids -out %s' % (inFileName, outDBname)
 	process = subprocess.Popen(makeblastdb_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()
 	if verbose_level in [1, 2]:
-		#log.write(out + err)
 		log.write(str(err))
 		log.write(str(out))
 	return
@@ -114,21 +115,20 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
 	
 	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result
-	chimeras = open(outputfile_chimeras, 'w')
-	non_chimeras = open(outputfile_goodSeqs, 'w')
+	chimeras = open(outputfile_chimeras, 'w') # File to save chimera sequences
+	non_chimeras = open(outputfile_goodSeqs, 'w') # File to save non-chimeric, good sequences
 
-	loci_info_dict = {}
+	loci_info_dict = {} 
 	chimera_dict = {}
 	
+	# Go through the blast result, and see if any sequence matches to two different loci
 	for each_rec in chimera_blast:
 		each_rec = each_rec.strip('\n')
 		seq_name = each_rec.split('\t')[0]
 		First = True
 		if seq_name not in chimera_dict.keys():
-			#locus_name = each_rec.split('\t')[1].split('_')[0].upper() #upper to avoid "ApP" != "APP" issue
 			try:
-				locus_name = re.search('LOCUS=(\w+)/', each_rec.split('\t')[1], re.IGNORECASE).group(1)
-				#locus_name = refseq_name.split('_')[0].upper() # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
+				locus_name = re.search('LOCUS=(\w+)/', each_rec.split('\t')[1], re.IGNORECASE).group(1) # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
 			except:
 				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')				
 			locus_name = locus_name.upper()
@@ -136,7 +136,7 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 			locus_end = each_rec.split('\t')[6]
 			locus_direction = each_rec.split('\t')[-1]
 			if seq_name not in loci_info_dict.keys():
-				loci_info_dict[seq_name] = [(locus_name, int(locus_start), int(locus_end), locus_direction)]
+				loci_info_dict[seq_name] = [(locus_name, int(locus_start), int(locus_end), locus_direction)] # e.g. ('IBR', 41, 906, 'plus')
 
 			else:
 				if locus_name != loci_info_dict[seq_name][0][0]:
@@ -145,7 +145,8 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 						loci_info_dict[seq_name].append((locus_name, int(locus_start), int(locus_end), locus_direction))
 						First = False
 
-	non_chimeras_list = list(set(list(SeqDict.keys())) - set(list(chimera_dict.keys())))
+	# Get the non-chimeric seq, and save them
+	non_chimeras_list = list(set(list(SeqDict.keys())) - set(list(chimera_dict.keys()))) 
 	for each_non_chimera in non_chimeras_list:
 		non_chimeras.write('>' + each_non_chimera + '\n' + str(SeqDict[each_non_chimera].seq) + '\n')
 
@@ -156,6 +157,7 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 			new_seq_name1 = each_chimera + 'ERRchimera_' + loci_info_list[0][0] + 'of' + loci_info_list[0][0] + '+' + loci_info_list[1][0]
 			new_seq_name2 = each_chimera + 'ERRchimera_' + loci_info_list[1][0] + 'of' + loci_info_list[0][0] + '+' + loci_info_list[1][0]
 			
+			# The chimeric sequences can be in any orientation, and each requires different ways to split the sequence
 			if loci_info_list[0][3] == 'plus' and loci_info_list[1][3] == 'plus':
 				locus_seq1 = str(SeqDict[each_chimera].seq)[:loci_info_list[0][2]]
 				locus_seq2 = str(SeqDict[each_chimera].seq)[loci_info_list[0][2]:]
@@ -173,10 +175,6 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 				locus_seq1 = str(SeqDict[each_chimera].seq)[:loci_info_list[1][1]]
 				locus_seq2 = str(SeqDict[each_chimera].seq)[loci_info_list[1][1]:]
 
-			#for each_locus in sorted(loci_info_dict[each_chimera], key=lambda list: list[1]): #each_locus as (locus_name, start_posi, end_posi)
-				#print each_locus
-				#new_seq_name = each_chimera + 'ERRchimera_' + each_locus[0] + 'of' + chimera_dict[each_chimera][0] + '+' + chimera_dict[each_chimera][1]
-				#locus_seq = str(SeqDict[each_chimera].seq)[int(each_locus[1]):int(each_locus[2])]
 			non_chimeras.write('>' + new_seq_name1 + '\n' + locus_seq1 + '\n')
 			non_chimeras.write('>' + new_seq_name2 + '\n' + locus_seq2 + '\n')
 
@@ -184,12 +182,13 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 		new_seq_name = each_chimera + 'ERRchimera_' + chimera_dict[each_chimera][0] + '+' + chimera_dict[each_chimera][1]
 		chimeras.write('>' + new_seq_name + '\n' + str(SeqDict[each_chimera].seq) + '\n')
 
-
-	return chimera_dict
+	return chimera_dict # as {seq1: [locus1, locus2], seq2: [locus1, locus3]}
 	
 def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Output_prefix):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
-	sequence name, removes the barcode from sequence; returns a list of barcode names"""
+	sequence name, removes the barcode from sequence; returns a list of barcode names.
+	Note that the range of acceptable bc starting point is hardcoded here, e.g. "if barcode_info_dict[each_seq][1] < 15:", "elif barcode_info_dict[each_seq][1] > len(str(SeqDict[each_seq].seq))-40:"
+	"""
 	
 	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
@@ -226,7 +225,7 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 	for each_seq in seq_withbc_list:
 		new_seq_name = str(barcode_info_dict[each_seq][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 
-		#check the orientation of the sequence; if the barcode is in the 3' end, reverse complement the seq
+		# Check the orientation of the sequence; if the barcode is in the 3' end, reverse complement the seq
 		if barcode_info_dict[each_seq][1] < 15: # The start position _should_ be 1, but this allows for some slop
 			new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][2]:]) # "barcode_end_posi" to the end of the sequence
 		elif barcode_info_dict[each_seq][1] > len(str(SeqDict[each_seq].seq))-40: # Those barcodes that are at the end of the sequences, so need to be reversecomplemented
@@ -253,21 +252,18 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 	
 	return 
 
-# This function looks for barcodes at the ends of the sequence, only. So it avoids internal barcodes (helpful in part because some of our loci had regions that were similar to some primer sequences)
 def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_range=25):
-	#blast_outfile = open(outputfile, 'w')
-	F_ends = open('tempF', 'w')
-	R_ends = open('tempR', 'w')
+	"""This function looks for barcodes at the ends of the sequence, only. So it avoids internal barcodes 
+	(helpful in part because some of our loci had regions that were similar to some primer sequences)
+	"""
 	bc_trimmed = open(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', 'w') # For writing the de-barcoded sequences
 	bc_leftover = open(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
 	bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
 
+	# Get 5' and 3' end sequences, the length of seq is determined by search_range
+	F_ends = open('tempF', 'w')
+	R_ends = open('tempR', 'w')
 	for each_rec in sorted(SeqDict):
-		#blastn_cLine = "blastn -db %s -task blastn -max_target_seqs 1 -outfmt '6 qacc sacc length pident evalue qstart qend qlen'" % databasefile
-		#blastn_F = subprocess.Popen(blastn_cLine, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-		#results_F, err = blastn_F.communicate(seq_to_search_F)		
-		#blast_outfile.write(results_F)
-
 		seq_to_search_F = str(SeqDict[each_rec].seq)[:search_range]
 		F_ends.write('>' + str(each_rec) + '\n' + seq_to_search_F + '\n')
 
@@ -321,9 +317,9 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 		new_seq_name = str(barcode_info_dict[each_seq][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 
 		#check the orientation of the sequence; if the barcode is in the 3' end, reverse complement the seq
-		if barcode_info_dict[each_seq][-1] == '+': 
+		if barcode_info_dict[each_seq][-1] == '+': # bc on the 5' end
 			new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][2]:]) 
-		elif barcode_info_dict[each_seq][-1] == '-': 
+		elif barcode_info_dict[each_seq][-1] == '-': # bc on the 3' end
 			new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq))[barcode_info_dict[each_seq][2]:]
 
 		bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
@@ -348,7 +344,10 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 
 def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
-	sequence name, removes the barcode from sequence; deal with barcodes at both primers"""
+	sequence name, removes the barcode from sequence; deal with barcodes at both primers.
+	Note that the range of acceptable bc starting point is hardcoded here, e.g. "if barcode_info_dict[each_seq][0][1] < 5" and "elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30".
+	"""
+	
 	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, evalue=1, max_target=2, outfmt='6 qacc sacc length pident bitscore qstart qend')
 	
 	bc_blast = open(Output_folder + '/blast_barcode_out.txt', 'rU') # Read the blast result
@@ -405,7 +404,6 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 		elif len(barcode_info_dict[each_seq]) == 2:		
 			# Check if barcodes are in the same category (F, R); don't want these 
 			if barcode_info_dict[each_seq][0][0][2] == barcode_info_dict[each_seq][1][0][2]:
-				#print 'Error: Invalid Dual-barcodes for', each_seq
 				new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 				bc_invalid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
 				continue 
@@ -484,19 +482,13 @@ def DeBarcoder_SWalign(SeqDict, barcode_seq_filename, Output_folder, Output_pref
 				bc_trimmed.write('>' + new_seq_name + '\n' + ReverseComplement(str(SeqDict[each_rec].seq)[Match[1].q_end:]) + '\n')
 	return count_matches
 
-def dePrimer(FRprims, InFile, OutFile):
-	'''Attempt to use Usearch to remove primers; not useful as it does not allow indels; stick to cutadapt'''
-	#usearch -search_pcr greengenes.fa -db 16s_primers.fa -strand both -maxdiffs 3 -minamp 30 -maxamp 2000 -pcrout hits.txt -ampout amplicons.fasta
-	usearch_cline = "%s -search_pcr %s -db %s -strand both -maxdiffs 3 -minamp 30 -maxamp 2000 -pcrout hits.txt -ampout %s" % (Usearch, InFile, FRprims, OutFile)
-
 def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50): 
-	'''This function removes the primers using the Cutadapt program. Replaces the DePrimer function'''
+	"""Removes the primers using the Cutadapt program."""
 	
 	# Build the forward and reverse primer portions of the cutadapt command lines by adding each primer in turn
 	F_cutadapt_cline = ''
 	for each_primer in Fprims: 
 		each_primer = each_primer.upper() #in case the primers aren't uppercase (lower case nucs will confuse ReverseComplement)
-		# F_cutadapt_cline = F_cutadapt_cline + '-g ' + each_primer + ' ' # F_cutadapt_cline as '-g GGACCTGGSCTYGCTGARGAGTG -g TCTGCMCATGCMATTGAAAGAGAG -g GAGYGTTTGGAATGTYTCWTTCCTYGG'
 		F_cutadapt_cline = F_cutadapt_cline + '-g ^' + each_primer + ' ' 
 		# e.g.,  F_cutadapt_cline as '-g ^GGACCTGGSCTYGCTGARGAGTG -g ^TCTGCMCATGCMATTGAAAGAGAG -g ^GAGYGTTTGGAATGTYTCWTTCCTYGG'
 		""" The version with the "^" included anchors the fprimer so that it has to occur at the beginning of the sequence.
@@ -523,18 +515,17 @@ def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50):
 		log.write('**Primer-trimming results**\n')
 		log.write(str(err))
 
-def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=True): #I can get rid of Output_folder? Output_folder,
+def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=True): 
 	"""Uses the annotated sequences to split sequences into different files based on splits_list 
 	(could be by barcode or by locus, etc); returns a dictionary of seq counts for each subgroup"""
 	
-	#annotd_seqs = open(annotd_seqs_file, 'rU')
 	unsplit_seq = parse_fasta(annotd_seqs_file)	
 	splits_file_dic = {}
 	splits_count_dic = {}
 	splits_list = []
 
 	for each_seq in unsplit_seq:
-		#finding the identifing annotation for the split of interest.
+		# Find the annotation for the split of interest.
 		# e.g., BC01, BC02, ... or gapCp, PGIC, ...
 
 		if split_by == "taxon":
@@ -552,16 +543,15 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Tru
 		elif split_by == "barcode" and not Multiplex_perBC_flag:
 			split = str(each_seq.id).split('|')[2]
 		else:
-			sys.stderr.write('Error: Attempting to split sequences by an inappropriate (absent?) category.\n')
+			sys.exit('Error: Attempting to split sequences by an inappropriate (absent?) category.\n')
 
 		if split not in splits_list: # add split identifier to the list of splits
 			splits_list.append(split)
 			os.makedirs(split)
 			os.chdir(split)		
 			seq_file = split + '.fa'
-			file_handle = open(seq_file, 'w') #FWL only have to do this once, for the first time that split occurs?
+			file_handle = open(seq_file, 'w') # Only have to do this once, for the first time that split occurs
 			splits_file_dic[split] = file_handle # e.g., {BC01:BC01.fa, BC02:BC02.fa, ...}
-			# os.chdir('..')
 		else:
 			os.chdir(split)	
 	
@@ -574,14 +564,14 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Tru
 			splits_count_dic[split] = 1		
 		
 		os.chdir('..')
-	# FWL - do we not have to close each of the files we've been writing to?
 	return splits_count_dic #as {'BC01': 150, 'BC02': 156} for example
 
 def makeMapDict(mapping_file, locus, Multiplex_perBC_flag=True, DualBC_flag=False): #danger? Locus used somewhere else?
-	map = open(mapping_file, 'rU') #open the correct mapping file
-	outputfile_name = '_' + str(locus) + '.txt'
+	"""Constructs a dictionary, MapDict, that maps each barcode/locus combination to a specific accession
+	This function is used in annotateIt"""
+	
+	map = open(mapping_file, 'rU') #open the mapping file
 
-	#constructing a dict that maps each barcode/locus combination to a specific accession
 	if Multiplex_perBC_flag and not DualBC_flag: # when there are multiple individuals sharing the same barcodes
 		MapDict = {}
 		for each_rec in map:
@@ -609,22 +599,18 @@ def makeMapDict(mapping_file, locus, Multiplex_perBC_flag=True, DualBC_flag=Fals
 			key = map_barcode_name #BC01_A, BC01_B, BC010_C...
 			MapDict[key] = map_taxon_name
 	
-	map.close() #think this belongs in here now
+	map.close() 
 	return MapDict
 
 def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, DualBC_flag=False, verbose_level=0):	
 	"""Uses the blast results (against the reference sequence database) to assign locus and taxon, and write sequences 
 	for a particular locus as specified by map_locus; returns a dictionary containing taxon-locus seq counts"""		
 	
-	# Blasts each sequence in the file (e.g., BC01.fa) against the reference sequences
+	# Blasts each sequence in the input file (e.g., BC01.fa) against the reference sequences
 	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
-	SeqDict = SeqIO.index(filetoannotate, 'fasta') # Reads the sequences as a dict
-
-	refseq_blast = open(Output_folder + '/blast_refseq_out.txt', 'rU') #read the ref_seq blast result
-	groupsList = []
-	locusList = []
-	LocusTaxonCountDict = {}
+	# Reads the  sequences as a dict
+	SeqDict = SeqIO.index(filetoannotate, 'fasta') 
 	
 	# Using blast matches to the reference sequences, and barcode <-> taxon mapping files, to assign 
 	# each seq to a particular locus and taxon
@@ -632,13 +618,14 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for each_file, each_locus in zip(mapping_file_list, locus_list): 
 		dictOfMapDicts[each_locus.upper()] = makeMapDict(each_file, each_locus, Multiplex_perBC_flag, DualBC_flag) # Note the Multiplex_perBC and DualBC flags (as True/False)
 
-	#print dictOfMapDicts
+	refseq_blast = open(Output_folder + '/blast_refseq_out.txt', 'rU') 	
 	annotated_seqs = open(outFile, "w")
 	no_matches = open(failsFile, "w")
-
+	groupsList = []
+	locusList = []
+	LocusTaxonCountDict = {}
 	seq_processed_list = []
 	for each_rec in refseq_blast:
-		
 		each_rec = each_rec.strip('\n')	
 		seq_name = each_rec.split('\t')[0] # The un-annotated sequence name, e.g., "BC02|m131213_174801_42153_c100618932550000001823119607181400_s1_p0/282/ccs;ee=7.2;"
 		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "locus=PGI|group=C|ref_taxon=C_diapA_BC17" ##Need to change this format
@@ -686,8 +673,6 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 				seq_processed_list.append(seq_name)
 		except:
 			log.write("\tThe combo" + str(key) + "wasn't found in" + str(locus_name) + '\n')
-			#print "The combo", key, "wasn't found in", locus_name
-			#print "(currently trying to find a match for", seq_name, ")\n"
 			if Multiplex_perBC_flag:
 				new_seq_name = locus_name + '|' + group_name + '|' + seq_name.replace(seq_name_toErase, '')
 			else:
@@ -698,8 +683,6 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 			continue
 	
 	seq_no_hit = list(set(SeqDict.keys()) - set(seq_processed_list))
-	#print "There are ", len(seq_no_hit), " sequences that failed to match any of the reference sequences -- these are likely contaminants."
-	#print "They have been added to the 'unclassifiable' output fasta file."
 	log.write("\tThere are " + str(len(seq_no_hit)) + " sequences that failed to match any of the reference sequences -- these are likely contaminants and added to the 'unclassifiable' output fasta file\n")
 	for each_rec in seq_no_hit:
 		no_matches.write('>' + each_rec + '\n' + str(SeqDict[each_rec].seq) + '\n')
@@ -709,7 +692,6 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	no_matches.close()
 
 	if verbose_level in [1, 2]:
-		#print "The groups found are ", ', '.join(groupsList), "\nAnd the loci found are ", ', '.join(locusList), "\n"
 		log.write("The groups found are " + ', '.join(groupsList) + "\nAnd the loci found are " + ', '.join(locusList) + "\n")
 	return LocusTaxonCountDict #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
 
@@ -881,16 +863,10 @@ else:
 						sys.exit("Error: couldn't find " + mapfile)
 			elif setting_name == 'Usearch':
 				Usearch = ppp_location + '/' + setting_argument
-				#print 'Usearch location: ', Usearch
-				#log.write('Usearch location: ' + str(Usearch) + '\n')
 			elif setting_name == 'Cutadapt':
 				Cutadapt = ppp_location + '/' + setting_argument
-				#print 'Cutadapt location: ', Cutadapt
-				#log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
 			elif setting_name == 'Muscle':
 				Muscle = ppp_location + '/' + setting_argument
-				#print 'Muscle location: ', Muscle
-				#log.write('Muscle location: ' + str(Muscle) + '\n')
 			elif setting_name == 'clustID':
 				clustID = float(setting_argument)
 			elif setting_name == 'clustID2':
@@ -955,20 +931,21 @@ else:
 				else:
 					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
 
+	# Check if dependencies are in place
+	if not os.path.isfile(Usearch):
+		sys.exit("Error: couldn't find the Usearch executable")
+	if not os.path.isfile(Cutadapt):
+		sys.exit("Error: couldn't find the Cutadapt executable")
+	if not os.path.isfile(Muscle):
+		sys.exit("Error: couldn't find the Muscle executable")
+
 	log = open(log_file, 'w')
 	log.write(logo + '\n')
 	log.write("PURC called with: \n\t" + str(sys.argv) + "\n") 
 	log.write('Usearch location: ' + str(Usearch) + '\n')
 	log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
 	log.write('Muscle location: ' + str(Muscle) + '\n')
-	
-	if Recycle_bc:
-		import swalign #so that users don't need to have this if not using this functionality
-
-	#print "\nSettings for this run:"
-	#print "\tSequence file:\t", raw_sequences, "\n\tLoci:\t", '\t'.join(locus_list)
 	log.write("Settings for this run:\n" + "\tSequence file:\t" + str(raw_sequences) + "\n\tLoci:\t" + '\t'.join(locus_list) + '\n')
-
 	log.write("\tMapping files: " + ', '.join(mapping_file_list) + '\n')
 	log.write("\tForward primers: " + ', '.join(Forward_primer) + '\n')
 	log.write("\tReverse primers: " + ', '.join(Reverse_primer) + '\n')
@@ -988,12 +965,14 @@ else:
 	if Recycle_bc:
 		log.write('''\tIf the BLAST-based approach doesn't find a barcode in a particular sequence
 		the sequence will be re-searched using a Smith-Waterman pairwise alignment approach\n''')
+		import swalign #so that users don't need to have this if not using this functionality
 	else: 
 		log.write("\tPrimer-searching will be done using the BLAST-based approach, only\n")
 	if Recycle_chimera:
 		log.write("\tInter-locus chimeras will be split into their component pieces and fed into the pipeline\n")
 	else:
 		log.write("\tInter-locus chimeras will be removed from the analysis\n")
+	
 	log.write("\tSimilarity cut-off for clustering:\t" + str(clustID) + "\t" + str(clustID2) + "\t" + str(clustID3) + '\n')
 	log.write("\tCluster size for retention:\t" + str(sizeThreshold) + "\t" + str(sizeThreshold) + "\t" + str(sizeThreshold2) + '\n')
 	
