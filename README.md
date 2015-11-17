@@ -170,6 +170,11 @@ BLAST:
 -Camacho, C., G. Coulouris, V. Avagyan, N. Ma, J. Papadopoulos, et al. 2009. 
 BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
 
+
+### FAQ ###
+ERRmidBC
+
+
 ### Who do I talk to? ###
 Fay-Wei Li
 Carl Rothfels
