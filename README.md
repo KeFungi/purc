@@ -103,6 +103,9 @@ This assumes that the purc script (and Dependencies directory) is in /Users/fayw
 purc.py purc_configuration.txt
 ```
 
+## TODOS ##
+### describe the output files produced (e.g., BC16_SlC1_0.997dCh1Ss1C2_0.995dCh2Ss2C3_0.99dCh3Ss3, the .uc ones, etc)
+
 ### Example 1 - PacBio ###
 In this dataset, four loci were amplified from 30 *Cystopteris* specimens. Each specimen was labeled with a unique barcode, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because each barcode corresponds to a single specimen, in the configuration file we specify: 
 ```
