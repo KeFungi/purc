@@ -696,7 +696,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	return LocusTaxonCountDict #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
 
 def sortIt_length(file, verbose_level=0):
-	"""Sorts clusters by seq length"""
+	"""Sorts clusters by seq length; NOT CURRENTLY USED"""
 	outFile = re.sub(r"(.*)\..*", r"\1_Sl.fa", file) # Make the outfile name by cutting off the extension of the infile name, and adding "_S1.fa"
 	usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, file, outFile)
 	#usearch_cline = "%s -sortbylength %s -output %s" %(Usearch, file, outFile) # Usearch 7 
@@ -710,16 +710,18 @@ def sortIt_length(file, verbose_level=0):
 		log.write(str(err))
 	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
 
-def clusterIt(file, clustID, round, verbose_level=0):
+def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verbose_level=0):
 	"""The clustering step, using the clustID value"""
 	outFile = re.sub(r"(.*)\.fa", r"\1C%s_%s.fa" %(round, clustID), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	outClustFile = re.sub(r"(.*)\.fa", r"\1clusts%s\.uc" %(round), file)	
+	outClustFile = re.sub(r"(.*).fa", r"\1clusts%s.uc" %(round), file)
 	if round == 1:
-		usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -sortedby other -centroids %s -uc %s -sizeout" % (Usearch, file, clustID, outFile, outClustFile) 
+		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -sortedby %s -consout %s -uc %s -sizeout" % (Usearch, file, clustID, sortby, outFile, outClustFile) 
+		#usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -sortedby other -centroids %s -uc %s -sizeout" % (Usearch, file, clustID, outFile, outClustFile) 
 		#usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -usersort -consout %s -uc %s -sizeout" % (Usearch, file, clustID, outFile, outClustFile) # Usearch 7   
         # Can add in "-cons_truncate" to the usearch call, if the primer removal isn't effective, but note some problems with partial sequences results.
 	elif round > 1:
-		usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -sortedby other -centroids %s -uc %s -sizein -sizeout" % (Usearch, file, clustID, outFile, outClustFile)
+		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -sortedby %s -consout %s -uc %s -sizein -sizeout" % (Usearch, file, clustID, sortby, outFile, outClustFile)
+		#usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -sortedby other -centroids %s -uc %s -sizein -sizeout" % (Usearch, file, clustID, outFile, outClustFile)
 		#usearch_cline = "%s -cluster_smallmem %s -id %f -gapopen 3I/1E -usersort -consout %s -uc %s -sizein -sizeout" % (Usearch, file, clustID, outFile, outClustFile) # Usearch 7	
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
@@ -729,8 +731,35 @@ def clusterIt(file, clustID, round, verbose_level=0):
 		#print err
 		log.write('\n**Usearch-clustering output on' + str(file) + '**\n')
 		log.write(str(err))
-	return outFile
 	
+	uc = open(outClustFile, 'rU')
+	#if round == 1: 
+	ClusterToCentroid_dict = {}
+	#	global ClusterToCentroid_dict
+	for line in uc:
+		if line.startswith('C'):
+			cluster_name = 'Cluster' + str(line.split('\t')[1])
+			centroid_seq_name = line.split('\t')[-2]
+			
+			if round > 1:
+				ClusterToCentroid_dict[cluster_name] = previousClusterToCentroid_dict[centroid_seq_name.split(';')[0]]
+			elif round == 1:
+				ClusterToCentroid_dict[cluster_name] = centroid_seq_name
+
+	if round == 3:
+		clustered_seqs = parse_fasta(outFile)
+		renamed_clustered_seqs = open('temp', 'a')
+		for seq in clustered_seqs: # seq as 'Cluster15;size=1;'
+			#new_seq_id = ClusterToCentroid_dict[str(seq.id).split(';')[0]]
+			new_seq_id = str(seq.id).replace(str(seq.id).split(';')[0], ClusterToCentroid_dict[str(seq.id).split(';')[0]])
+			#new_seq_id = ClusterToCentroid_dict[str(seq.id).split(';')[0]] + ';' + str(seq.id).split(';')[0:]
+			#print str(seq.id).split(';')
+			renamed_clustered_seqs.write('>' + new_seq_id + '\n' + str(seq.seq) + '\n')
+		os.remove(outFile)
+		os.rename('temp', outFile)
+
+	return outFile, ClusterToCentroid_dict
+
 # This function looks for PCR chimeras -- those formed within a single amplicon pool
 def deChimeIt(file, round, verbose_level=0):
 	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
@@ -780,7 +809,18 @@ def muscleIt(file, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-
+def renameClusteredSeq(file, uc_outfile):
+	uc = open(uc_outfile, 'rU')
+	ClusterToCentroid_dict = {}
+	for line in uc:
+		if line.startswith('C'):
+			cluster_name = 'Cluster' + str(line.split('\t')[1])
+			centroid_seq_name = line.split('\t')[-2]
+			ClusterToCentroid_dict[cluster_name] = centroid_seq_name
+	
+			sed_cmd = "sed 's/%s;/%s/g' %s > %s" % (cluster_name, ClusterToCentroid_dict[cluster_name], file, 'temp')
+			process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			(out, err) = process.communicate()
 
 
 ################################################ Setup ################################################
@@ -1104,8 +1144,8 @@ for each_folder in all_folders_loci:
 				log.write("\tFirst clustering\n")
 				log.write("\nAttempting to sort: " + bcode_folder + ".fa\n")
 
-			sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
-			clustered1 = clusterIt(file = sorted_length, clustID = clustID, round = 1, verbose_level = verbose_level)
+			#sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
+			clustered1, previousClusterToCentroid_dict = clusterIt(file = bcode_folder + ".fa", sortby = 'length', previousClusterToCentroid_dict = '', clustID = clustID, round = 1, verbose_level = verbose_level)
 
 			if verbose_level in [1,2]:
 				log.write("\tFirst chimera slaying expedition\n")
@@ -1113,8 +1153,8 @@ for each_folder in all_folders_loci:
 			
 			if verbose_level in [1,2]:
 				log.write("\tSecond clustering\n")
-			sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-			clustered2 = clusterIt(file = sorted_size1, clustID = clustID2, round = 2, verbose_level = verbose_level)
+			#sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
+			clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
 			
 			if verbose_level in [1,2]:
 				log.write("\tSecond chimera slaying expedition\n")
@@ -1122,8 +1162,8 @@ for each_folder in all_folders_loci:
 			
 			if verbose_level in [1,2]:
 				log.write("\tThird clustering\n")
-			sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-			clustered3 = clusterIt(file = sorted_size2, clustID = clustID3, round = 3, verbose_level = verbose_level)
+			#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
+			clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
 			
 			if verbose_level in [1,2]:
 				log.write("\tThird chimera slaying expedition\n")
@@ -1131,6 +1171,12 @@ for each_folder in all_folders_loci:
 
 			# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
 			sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
+
+			# rename seqs
+			#sed_cmd = "sed 's/>/>', %s, '_/g' %s > %s" % (bcode_folder, sorted_size3, outfile)
+			#process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+			#(out, err) = process.communicate()
+
 
 			try:
 				clustered_seq_file = parse_fasta(sorted_size3)
