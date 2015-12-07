@@ -12,8 +12,8 @@ usage = """
 
 Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
 
-Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2
-Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4
+Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2 outputFolder
+Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4 Run2
 
 Note: 
 (1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
@@ -41,7 +41,7 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 
 	for each_seq in unsplit_seq:
 		#finding the identifing annotation for the split of interest.
-		# e.g., BC01, BC02, ... or gapCp, PGIC, ...
+		# e.g., BC01, BC02, ... or GAP, PGI, ...
 
 		if split_by == "taxon":
 			split = str(each_seq.id).split('|')[0]
@@ -283,19 +283,28 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 
 	return LocusTaxonCountDict_clustd
 
-ppp_location = os.path.dirname(os.path.abspath( __file__ ))
-Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
+purc_location = os.path.dirname(os.path.abspath( __file__ ))
+Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
+
 
 if len(sys.argv) < 6:
 	sys.exit(usage)
 
-log = open('purc_log.txt', 'w')
 annotated_file = sys.argv[1]
 clustID = float(sys.argv[2])
 clustID2 = float(sys.argv[3])
 clustID3 = float(sys.argv[4])
 sizeThreshold = int(sys.argv[5])
 sizeThreshold2 = int(sys.argv[6])
+masterFolder = sys.argv[7]
+
+## Make output folder ##
+if os.path.exists(masterFolder): # overwrite existing folder
+	shutil.rmtree(masterFolder)
+os.makedirs(masterFolder)
+os.chdir(masterFolder)
+
+log = open('purc_log.txt', 'w')
 
 LocusTaxonCountDict_clustd = ClusterDechimera(annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
