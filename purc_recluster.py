@@ -5,24 +5,23 @@ import re
 import subprocess
 import glob
 import shutil
+import time
+import datetime
 from Bio import SeqIO
 
 
 usage = """
 
-Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
+Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2 outputFolder
-Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4 Run2
+Usage: ./purc_recluster.py annoated_file output_folder clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2 outputFolder
+Example: ./purc_recluster.py purc_run_3_annotated.fa recluster 0.997 0.995 0.99 1 4 Run2
 
 Note: 
 (1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
 (2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
 	"""
-
-
-
 
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
@@ -37,6 +36,7 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 	unsplit_seq = parse_fasta(annotd_seqs_file)	
 	splits_file_dic = {}
 	splits_count_dic = {}
+	LocusTaxonCountDict_unclustd = {}
 	splits_list = []
 
 	for each_seq in unsplit_seq:
@@ -78,25 +78,19 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 			splits_count_dic[split] += 1
 		except:
 			splits_count_dic[split] = 1		
+	
+		if split_by == "locus":
+			try:
+				LocusTaxonCountDict_unclustd[str(each_seq.id).split('|')[0], str(each_seq.id).split('|')[1]] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+				# The locus names are the same as each_folder
+			except:
+				LocusTaxonCountDict_unclustd[str(each_seq.id).split('|')[0], str(each_seq.id).split('|')[1]] = 1		
 		
 		os.chdir('..')
-	# FWL - do we not have to close each of the files we've been writing to?
-	return splits_count_dic #as {'BC01': 150, 'BC02': 156} for example
-
-def sortIt_length(file, verbose_level=0):
-	"""Sorts clusters by seq length"""
-	outFile = re.sub(r"(.*)\..*", r"\1_Sl.fa", file) # Make the outfile name by cutting off the extension of the infile name, and adding "_S1.fa"
-	usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, file, outFile)
-	#usearch_cline = "%s -sortbylength %s -output %s" %(Usearch, file, outFile) # Usearch 7 
-	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-	(out, err) = process.communicate() #the stdout and stderr
-	savestdout = sys.stdout 
-	if verbose_level == 2:
-		#print '\n**Usearch-sorting output on', file, '**\n'
-		#print err
-		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
-		log.write(str(err))
-	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
+	if split_by == "locus":
+		return splits_count_dic, LocusTaxonCountDict_unclustd #as {'BC01': 150, 'BC02': 156} for example
+	else:
+		return splits_count_dic
 
 def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verbose_level=1):
 	"""The clustering step, using the clustID value"""
@@ -180,9 +174,9 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = True, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
+def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = False, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
-	locusCounts = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
+	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
 
 	## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
 	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
@@ -280,23 +274,42 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 		os.chdir('..')
 		outputfile.close()
 
+	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd
 
-	return LocusTaxonCountDict_clustd
+def muscleIt(file, verbose_level=0):
+	"""Aligns the sequences using MUSCLE"""
+	outFile = re.sub(r"(.*)\..*", r"\1.afa", file) # The rs indicate "raw" and thus python's escaping gets turned off
+	muscle_cline = '%s -in %s -out %s' % (Muscle, file, outFile)
+	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+	if verbose_level == 2:
+		#print '\n**Muscle output on', file, '**\n'
+		#print err
+		log.write('\n**Muscle output on' + str(file) + '**\n')
+		log.write(str(err))
+	return outFile
 
-purc_location = os.path.dirname(os.path.abspath( __file__ ))
-Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
-
-
-if len(sys.argv) < 6:
+###### RUN ######	
+if len(sys.argv) < 7:
 	sys.exit(usage)
 
 annotated_file = sys.argv[1]
-clustID = float(sys.argv[2])
-clustID2 = float(sys.argv[3])
-clustID3 = float(sys.argv[4])
-sizeThreshold = int(sys.argv[5])
-sizeThreshold2 = int(sys.argv[6])
-masterFolder = sys.argv[7]
+masterFolder = sys.argv[2]
+clustID = float(sys.argv[3])
+clustID2 = float(sys.argv[4])
+clustID3 = float(sys.argv[5])
+sizeThreshold = int(sys.argv[6])
+sizeThreshold2 = int(sys.argv[7])
+
+purc_location = os.path.dirname(os.path.abspath( __file__ ))
+Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
+Muscle = purc_location + '/' + 'Dependencies/muscle3.8.31'
+
+ts = time.time()
+time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
+log_file = 'purc_log_' + time_stamp + '.txt'
+log = open(log_file, 'w')
 
 ## Make output folder ##
 if os.path.exists(masterFolder): # overwrite existing folder
@@ -304,11 +317,8 @@ if os.path.exists(masterFolder): # overwrite existing folder
 os.makedirs(masterFolder)
 os.chdir(masterFolder)
 
-log = open('purc_log.txt', 'w')
-
-LocusTaxonCountDict_clustd = ClusterDechimera(annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
-
-
+## Recluster and redechimera ##
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 taxon_list = []
 locus_list = []
@@ -318,52 +328,77 @@ for taxon_locus in LocusTaxonCountDict_clustd.keys():
 taxon_list = set(taxon_list)
 locus_list = set(locus_list)
 
-
-
+## Count ##
 count_output = open('purc_cluster_counts.xls', 'w')
-count_output.write('\n**Final clustered sequences per accession per locus**\n')
-log.write('\n**Final clustered sequences per accession per locus**\n')
 
-count_output.write('\t' + '\t'.join(locus_list) + '\n')	
-log.write('\t' + '\t'.join(locus_list) + '\n')	
-
-for each_taxon in set(taxon_list):
-	#print each_taxon, '\t',
-	count_output.write(each_taxon + '\t')		
-	log.write(each_taxon + '\t')		
-
+log.write("\n**Raw reads per accession per locus**\n")
+count_output.write('\n**Raw reads per accession per locus**\n')
+count_output.write('\t' + '\t'.join(locus_list) + '\n')
+log.write('\t' + '\t'.join(locus_list) + '\n')
+for each_taxon in set(taxon_list): 
+	count_output.write(each_taxon + '\t')
+	log.write(each_taxon + '\t')
 	for each_locus in locus_list:
 		try:
-			#print LocusTaxonCountDict_clustd[each_taxon, each_locus], '\t',
+			count_output.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
+			log.write(str(LocusTaxonCountDict_unclustd[each_taxon, each_locus]) + '\t')
+		except:
+			count_output.write('0\t')
+			log.write('0\t')
+	count_output.write('\n')
+	log.write('\n')
+
+count_output.write('\n**Final clustered sequences per accession per locus**\n')
+log.write('\n**Final clustered sequences per accession per locus**\n')
+count_output.write('\t' + '\t'.join(locus_list) + '\n')	
+log.write('\t' + '\t'.join(locus_list) + '\n')	
+for each_taxon in set(taxon_list):
+	count_output.write(each_taxon + '\t')		
+	log.write(each_taxon + '\t')		
+	for each_locus in locus_list:
+		try:
 			count_output.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
 			log.write(str(LocusTaxonCountDict_clustd[each_taxon, each_locus]) + '\t')
 		except:
-			#print '0', '\t',
 			count_output.write('0\t') 
 			log.write('0\t') 
-	#print
 	count_output.write('\n')		
 	log.write('\n')		
 
-#print 
-#print '\n**Allele/copy/cluster/whatever count by locus**'
 count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 log.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 
-# I think this was breaking if a locus had no sequences, and thus that file is not created. Going to try "try"
 for each_locus in locus_list:
 	file_name = str(each_locus) + '_clustered.txt'
-	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
+	try: 
 		seq_no = len(parse_fasta(file_name))
-		#print '\t', each_locus, ':', seq_no
 		count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
 		log.write(str(each_locus) + '\t' + str(seq_no) + '\n')
 	except:
-		#print '\t', each_locus, ':', 0
 		count_output.write(str(each_locus) + '\t0\n')			
 		log.write(str(each_locus) + '\t0\n')			
 
+## Clean-up the sequence names ##
+sys.stderr.write("Cleaning up the file names\n")
+fastas = glob.glob("*_clustered.txt")
+for file in fastas:
+	#log.write("Cleaning up the sequence names in " + str(file) + "\n")
+	fasta_cleaned = open(str(file).replace(".txt", "_renamed.fa"), 'w') # Make a new file with .fa instead of .txt
+	parsed = parse_fasta(file)
+	for seq in parsed:
+		seq.id = re.sub(r"seqs=\d*", r"", seq.id)
+		seq.id = re.sub(r"ccs.ee=[\d\.]*", r"", seq.id)
+		seq.id = seq.id.replace("centroid=", "").replace(";", "").replace("/","_")
+		fasta_cleaned.write(str('>' + seq.id + "\n" + seq.seq + "\n"))
+	fasta_cleaned.close()
 
+## Aligning the sequences ##
+fastas = glob.glob("*_renamed.fa")
+for file in fastas:
+	sys.stderr.write("Aligning " + file + "\n")
+	log.write("Aligning " + file + "\n")
+	outFile = muscleIt(file)
+	
 
 
 
