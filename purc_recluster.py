@@ -162,6 +162,20 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
+def muscleIt(file, verbose_level=0):
+	"""Aligns the sequences using MUSCLE"""
+	outFile = re.sub(r"(.*)\..*", r"\1.afa", file) # The rs indicate "raw" and thus python's escaping gets turned off
+	muscle_cline = '%s -in %s -out %s' % (Muscle, file, outFile)
+	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+	if verbose_level == 2:
+		#print '\n**Muscle output on', file, '**\n'
+		#print err
+		log.write('\n**Muscle output on' + str(file) + '**\n')
+		log.write(str(err))
+	return outFile
+
 def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = False, verbose_level = 0):
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
