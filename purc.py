@@ -341,7 +341,6 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 	bc_leftover.close()
 	bc_trimmed.close() #this is the file that now has all the sequences, labelled with the barcode, and the barcodes themselves removed
 
-
 def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
 	sequence name, removes the barcode from sequence; deal with barcodes at both primers.

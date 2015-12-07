@@ -6,6 +6,24 @@ import subprocess
 import glob
 import shutil
 from Bio import SeqIO
+
+
+usage = """
+
+Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
+
+Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2
+Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4
+
+Note: 
+(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
+(2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+
+	"""
+
+
+
+
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
 	AllSeq = SeqIO.parse(infile, 'fasta')
@@ -80,7 +98,7 @@ def sortIt_length(file, verbose_level=0):
 		log.write(str(err))
 	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
 
-def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verbose_level=0):
+def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verbose_level=1):
 	"""The clustering step, using the clustID value"""
 	outFile = re.sub(r"(.*)\.fa", r"\1C%s_%s.fa" %(round, clustID), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outClustFile = re.sub(r"(.*).fa", r"\1clusts%s.uc" %(round), file)
@@ -162,7 +180,7 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = False, verbose_level = 0):
+def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = True, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
 
@@ -269,18 +287,7 @@ ppp_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 
 if len(sys.argv) < 6:
-	sys.exit("""
-
-Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
-
-Usage: ./purc_recluster.py annoated_file clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2
-Example: ./purc_recluster.py purc_run_3_annotated.fa 0.997 0.995 0.99 1 4
-
-Note: 
-(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
-(2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
-
-	""")
+	sys.exit(usage)
 
 log = open('purc_log.txt', 'w')
 annotated_file = sys.argv[1]
