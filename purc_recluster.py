@@ -306,16 +306,16 @@ purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
 Muscle = purc_location + '/' + 'Dependencies/muscle3.8.31'
 
-ts = time.time()
-time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
-log_file = 'purc_log_' + time_stamp + '.txt'
-log = open(log_file, 'w')
-
 ## Make output folder ##
 if os.path.exists(masterFolder): # overwrite existing folder
 	shutil.rmtree(masterFolder)
 os.makedirs(masterFolder)
 os.chdir(masterFolder)
+
+ts = time.time()
+time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
+log_file = 'purc_log_' + time_stamp + '.txt'
+log = open(log_file, 'w')
 
 ## Recluster and redechimera ##
 LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
