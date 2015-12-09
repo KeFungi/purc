@@ -156,6 +156,21 @@ def deChimeIt(file, round, verbose_level=0):
 		log.write('\n**Uchime output on' + str(file) + '**\n')
 		log.write(str(err))
 	return outFile
+
+def sortIt_length(file, verbose_level=0):
+	"""Sorts clusters by seq length"""
+	outFile = re.sub(r"(.*)\..*", r"\1_Sl.fa", file) # Make the outfile name by cutting off the extension of the infile name, and adding "_S1.fa"
+	usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, file, outFile)
+	#usearch_cline = "%s -sortbylength %s -output %s" %(Usearch, file, outFile) # Usearch 7 
+	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+	if verbose_level == 2:
+		#print '\n**Usearch-sorting output on', file, '**\n'
+		#print err
+		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
+		log.write(str(err))
+	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
 	
 def sortIt_size(file, thresh, round, verbose_level=0):
 	"""Sorts clusters by size, and removes those that are smaller than a particular size
@@ -174,7 +189,7 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, Multiplex_per_barcode = False, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
+def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = False, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
 
@@ -210,8 +225,8 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 					log.write("\tFirst clustering\n")
 					log.write("\nAttempting to sort: " + bcode_folder + ".fa\n")
 
-				#sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
-				clustered1, previousClusterToCentroid_dict = clusterIt(file = bcode_folder + ".fa", sortby = 'length', previousClusterToCentroid_dict = '', clustID = clustID, round = 1, verbose_level = verbose_level)
+				sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
+				clustered1, previousClusterToCentroid_dict = clusterIt(file = sorted_length, sortby = 'length', previousClusterToCentroid_dict = '', clustID = clustID, round = 1, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\tFirst chimera slaying expedition\n")
@@ -220,7 +235,8 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
 				#sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-				clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
+				sorted_length2 = sortIt_length(file = deChimered1, verbose_level = verbose_level)
+				clustered2, previousClusterToCentroid_dict = clusterIt(file = sorted_length2, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
@@ -229,7 +245,8 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
 				#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
+				sorted_length2 = sortIt_length(file = deChimered2, verbose_level = verbose_level)				
+				clustered3, previousClusterToCentroid_dict = clusterIt(file = sorted_length2, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
@@ -237,15 +254,16 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 
 				if verbose_level in [1,2]:
 					log.write("\Forth clustering\n")
-				#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				clustered4, previousClusterToCentroid_dict = clusterIt(file = deChimered3, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
+				sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
+				#sorted_length2 = sortIt_length(file = deChimered3, verbose_level = verbose_level)				
+				clustered4, previousClusterToCentroid_dict = clusterIt(file = sorted_size3, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
 				deChimered4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
 
 				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
-				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold, round = 4, verbose_level = verbose_level)
+				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
 				try:
 					clustered_seq_file = parse_fasta(sorted_size4)
@@ -276,7 +294,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 		for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
 			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
 				os.chdir(bcode_folder)
-				files_to_add = glob.glob("*Ss3.fa")
+				files_to_add = glob.glob("*Ss4.fa")
 				for file in files_to_add: 
 					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
 				os.chdir('..')
@@ -309,6 +327,7 @@ clustID = float(sys.argv[3])
 clustID2 = float(sys.argv[4])
 clustID3 = float(sys.argv[5])
 sizeThreshold = int(sys.argv[6])
+sizeThreshold2 = int(sys.argv[7])
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
@@ -325,10 +344,10 @@ time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
 log_file = 'purc_log_' + time_stamp + '.txt'
 log = open(log_file, 'w')
 
-log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + '\n\n')
+log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
 
 ## Recluster and redechimera ##
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold)
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 taxon_list = []
 locus_list = []
