@@ -341,7 +341,6 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 	bc_leftover.close()
 	bc_trimmed.close() #this is the file that now has all the sequences, labelled with the barcode, and the barcodes themselves removed
 
-
 def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
 	sequence name, removes the barcode from sequence; deal with barcodes at both primers.
@@ -746,7 +745,7 @@ def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verb
 			elif round == 1:
 				ClusterToCentroid_dict[cluster_name] = centroid_seq_name
 
-	if round == 3:
+	if round == 4:
 		clustered_seqs = parse_fasta(outFile)
 		renamed_clustered_seqs = open('temp', 'a')
 		for seq in clustered_seqs: # seq as 'Cluster15;size=1;'
@@ -780,7 +779,7 @@ Haven"t looked into how to implement this yet '''
 
 def sortIt_size(file, thresh, round, verbose_level=0):
 	"""Sorts clusters by size, and removes those that are smaller than a particular size
-	(sent as thresh -- ie, sizeThreshold or sizeThreshold2). 
+	(sent as thresh -- ie, sizeThreshold). 
     "round" is used to annotate the outfile name with S1, S2, etc. depending on which sort this is"""
 	outFile = re.sub(r"(.*)\.fa", r"\1Ss%s.fa" %(round), file)
 	usearch_cline = "%s -sortbysize %s -fastaout %s -minsize %f" %(Usearch, file, outFile, thresh)
@@ -853,8 +852,8 @@ else:
 	clustID = 0.997
 	clustID2 = 0.995
 	clustID3 = 0.990
-	sizeThreshold = 1
-	sizeThreshold2 = 4
+	#sizeThreshold = 1
+	sizeThreshold = 4
 	verbose_level = 0
 	barcode_databasefile = 'barcode_blastdb'
 	refseq_databasefile = 'refseq_blastdb'
@@ -915,8 +914,6 @@ else:
 				clustID3 = float(setting_argument)													
 			elif setting_name == 'sizeThreshold':
 				sizeThreshold = float(setting_argument)	
-			elif setting_name == 'sizeThreshold2':
-				sizeThreshold2 = float(setting_argument)
 			elif setting_name == 'Forward_primer':
 				Forward_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')
 			elif setting_name == 'Reverse_primer':
@@ -1014,7 +1011,7 @@ else:
 		log.write("\tInter-locus chimeras will be removed from the analysis\n")
 	
 	log.write("\tSimilarity cut-off for clustering:\t" + str(clustID) + "\t" + str(clustID2) + "\t" + str(clustID3) + '\n')
-	log.write("\tCluster size for retention:\t" + str(sizeThreshold) + "\t" + str(sizeThreshold) + "\t" + str(sizeThreshold2) + '\n')
+	log.write("\tCluster size for retention:\t" + str(sizeThreshold) + '\n')
 	
 
 
@@ -1154,7 +1151,7 @@ for each_folder in all_folders_loci:
 			if verbose_level in [1,2]:
 				log.write("\tSecond clustering\n")
 			#sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-			clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
+			clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
 			
 			if verbose_level in [1,2]:
 				log.write("\tSecond chimera slaying expedition\n")
@@ -1163,14 +1160,23 @@ for each_folder in all_folders_loci:
 			if verbose_level in [1,2]:
 				log.write("\tThird clustering\n")
 			#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-			clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
-			
+			clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
+
 			if verbose_level in [1,2]:
 				log.write("\tThird chimera slaying expedition\n")
 			deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+			
+			if verbose_level in [1,2]:
+				log.write("\Forth clustering\n")
+			#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
+			clustered4, previousClusterToCentroid_dict = clusterIt(file = deChimered3, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
+
+			if verbose_level in [1,2]:
+				log.write("\tThird chimera slaying expedition\n")
+			deChimered4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
 
 			# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
-			sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
+			sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold, round = 4, verbose_level = verbose_level)
 
 			# rename seqs
 			#sed_cmd = "sed 's/>/>', %s, '_/g' %s > %s" % (bcode_folder, sorted_size3, outfile)
@@ -1179,7 +1185,7 @@ for each_folder in all_folders_loci:
 
 
 			try:
-				clustered_seq_file = parse_fasta(sorted_size3)
+				clustered_seq_file = parse_fasta(sorted_size4)
 				for each_seq in clustered_seq_file:
 					taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
 					
@@ -1190,7 +1196,7 @@ for each_folder in all_folders_loci:
 						LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
 			except:
 				if verbose_level in [1,2]:
-					log.write(str(sorted_size3) + 'is an empty file\n')
+					log.write(str(sorted_size4) + 'is an empty file\n')
 
 			os.chdir("..") # To get out of the current barcode folder and ready for the next one
 	os.chdir("..") # To get out of the current locus folder and ready for the next one
@@ -1207,7 +1213,7 @@ for each_folder in all_folders_loci: # Looping through each of the locus folders
 	for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
 		if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
 			os.chdir(bcode_folder)
-			files_to_add = glob.glob("*Ss3.fa")
+			files_to_add = glob.glob("*Ss4.fa")
 			for file in files_to_add: 
 				shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
 			os.chdir('..')

@@ -14,8 +14,8 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster.py annoated_file output_folder clustID1 clustID2 clustID sizeThreshold1 sizeThreshold2
-Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 1 4
+Usage: ./purc_recluster.py annoated_file output_folder clustID1 clustID2 clustID sizeThreshold
+Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 4
 
 Note: 
 (1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
@@ -128,7 +128,7 @@ def clusterIt(file, clustID, round, sortby, previousClusterToCentroid_dict, verb
 			elif round == 1:
 				ClusterToCentroid_dict[cluster_name] = centroid_seq_name
 
-	if round == 3:
+	if round == 4:
 		clustered_seqs = parse_fasta(outFile)
 		renamed_clustered_seqs = open('temp', 'a')
 		for seq in clustered_seqs: # seq as 'Cluster15;size=1;'
@@ -159,7 +159,7 @@ def deChimeIt(file, round, verbose_level=0):
 	
 def sortIt_size(file, thresh, round, verbose_level=0):
 	"""Sorts clusters by size, and removes those that are smaller than a particular size
-	(sent as thresh -- ie, sizeThreshold or sizeThreshold2). 
+	(sent as thresh -- ie, sizeThreshold). 
     "round" is used to annotate the outfile name with S1, S2, etc. depending on which sort this is"""
 	outFile = re.sub(r"(.*)\.fa", r"\1Ss%s.fa" %(round), file)
 	usearch_cline = "%s -sortbysize %s -fastaout %s -minsize %f" %(Usearch, file, outFile, thresh)
@@ -174,7 +174,7 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, Multiplex_per_barcode = False, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
+def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, Multiplex_per_barcode = False, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Multiplex_perBC_flag = Multiplex_per_barcode) 
 
@@ -220,7 +220,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
 				#sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-				clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
+				clustered2, previousClusterToCentroid_dict = clusterIt(file = deChimered1, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
@@ -229,17 +229,26 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
 				#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'size', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
+				clustered3, previousClusterToCentroid_dict = clusterIt(file = deChimered2, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
 				deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
 
+				if verbose_level in [1,2]:
+					log.write("\Forth clustering\n")
+				#sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
+				clustered4, previousClusterToCentroid_dict = clusterIt(file = deChimered3, sortby = 'length', previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
+
+				if verbose_level in [1,2]:
+					log.write("\tThird chimera slaying expedition\n")
+				deChimered4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
+
 				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
-				sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold2, round = 3, verbose_level = verbose_level)
+				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold, round = 4, verbose_level = verbose_level)
 
 				try:
-					clustered_seq_file = parse_fasta(sorted_size3)
+					clustered_seq_file = parse_fasta(sorted_size4)
 					for each_seq in clustered_seq_file:
 						taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
 						
@@ -250,7 +259,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 							LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
 				except:
 					if verbose_level in [1,2]:
-						log.write(str(sorted_size3) + 'is an empty file\n')
+						log.write(str(sorted_size4) + 'is an empty file\n')
 
 				os.chdir("..") # To get out of the current barcode folder and ready for the next one
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
@@ -300,7 +309,6 @@ clustID = float(sys.argv[3])
 clustID2 = float(sys.argv[4])
 clustID3 = float(sys.argv[5])
 sizeThreshold = int(sys.argv[6])
-sizeThreshold2 = int(sys.argv[7])
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
@@ -317,10 +325,10 @@ time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
 log_file = 'purc_log_' + time_stamp + '.txt'
 log = open(log_file, 'w')
 
-log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
+log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + '\n\n')
 
 ## Recluster and redechimera ##
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold)
 
 taxon_list = []
 locus_list = []
