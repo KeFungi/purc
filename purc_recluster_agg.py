@@ -17,8 +17,8 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster.py annoated_file output_folder clustID1 sizeThreshold
-Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.99 4
+Usage: ./purc_recluster_agg.py annoated_file output_folder clustID1 sizeThreshold
+Example: ./purc_recluster_agg.py purc_run_3_annotated.fa Run2 0.99 4
 
 Note: 
 (1) clustID : The similarity criterion for the first, second and third USEARCH clustering
