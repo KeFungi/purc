@@ -17,11 +17,11 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster.py annoated_file output_folder clustID1 clustID2 clustID sizeThreshold
-Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 4
+Usage: ./purc_recluster.py annoated_file output_folder clustID1 sizeThreshold
+Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.99 4
 
 Note: 
-(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
+(1) clustID : The similarity criterion for the first, second and third USEARCH clustering
 (2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
 	"""
@@ -30,23 +30,6 @@ def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
 	AllSeq = SeqIO.parse(infile, 'fasta')
 	return [i for i in AllSeq] 
-
-def align_and_consensus(inputfile, output_prefix):
-	output_alignment = output_prefix + '_aligned.fa'
-	output_consensus = output_prefix + '_consensus.fa'
-	muscle_cline = '%s -in %s -out %s' % (Muscle, inputfile, output_alignment)
-	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-	(out, err) = process.communicate() #the stdout and stderr
-	savestdout = sys.stdout 
-	#muscle_cline = MuscleCommandline(input=inputfile, out=output_alignment) 
-	#stdout, stderr = muscle_cline()
-
-	alignment = AlignIO.read(output_alignment, 'fasta')
-	summary_align = AlignInfo.SummaryInfo(alignment)
-	consensus = summary_align.gap_consensus(ambiguous='N')
-	output = open(output_consensus, 'w')
-	output.write('>' + output_prefix + '_consensus' + '\n' + str(consensus).replace('-','') + '\n')
-	return
 
 def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=False): 
 	"""Uses the annotated sequences to split sequences into different files based on splits_list 
@@ -112,6 +95,23 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 	else:
 		return splits_count_dic
 
+def align_and_consensus(inputfile, output_prefix):
+	output_alignment = output_prefix + '_aligned.fa'
+	output_consensus = output_prefix + '_consensus.fa'
+	muscle_cline = '%s -in %s -out %s' % (Muscle, inputfile, output_alignment)
+	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+	#muscle_cline = MuscleCommandline(input=inputfile, out=output_alignment) 
+	#stdout, stderr = muscle_cline()
+
+	alignment = AlignIO.read(output_alignment, 'fasta')
+	summary_align = AlignInfo.SummaryInfo(alignment)
+	consensus = summary_align.gap_consensus(ambiguous='N')
+	output = open(output_consensus, 'w')
+	output.write('>' + output_prefix + '_consensus' + '\n' + str(consensus).replace('-','') + '\n')
+	return
+
 def clusterIt_agg(file, clustID, sizeThreshold, verbose_level=2):
 	#clustering
 	round = '1'
@@ -147,35 +147,13 @@ def clusterIt_agg(file, clustID, sizeThreshold, verbose_level=2):
 			for seq in ClustToSeq_dict[cluster]:
 				cluster_seq_file.write('>' + seq + '\n' + str(SeqDict[seq].seq) + '\n')
 			cluster_seq_file.close()
-			align_and_consensus(cluster, cluster)
-			cat_cmd = 'cat *consensus.fa > %s' % outClustFile_seq
-			process = subprocess.Popen(cat_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-			(out, err) = process.communicate() #the stdout and stderr
-
-
-
-# This function looks for PCR chimeras -- those formed within a single amplicon pool
-def deChimeIt(file, round, verbose_level=0):
-	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
-	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s" % (Usearch, file, outFile)
-	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-	(out, err) = process.communicate() #the stdout and stderr
-	savestdout = sys.stdout 
-	if verbose_level in [1, 2]:
-		#print '\n**Uchime output on', file, '**\n'
-		#print err
-		log.write('\n**Uchime output on' + str(file) + '**\n')
-		log.write(str(err))
-	return outFile
+			align_and_consensus(cluster, file.split('.fa')[0])
 
 def ClusterDechimera(annotd_seqs_file, clustID, sizeThreshold, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus") 
 
 	## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
-	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
-	log.write('#Sequence clustering/dechimera-izing#\n')
 	all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
 		# folders) and they correspond to the counts for each.
 	LocusTaxonCountDict_clustd = {}
@@ -206,7 +184,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, sizeThreshold, verbose_level = 1
 	## Put all the sequences together ##
 	sys.stderr.write('\rPutting all the sequences together......\n\n')
 	for each_folder in all_folders_loci: # Looping through each of the locus folders
-		outputfile_name = str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
+		outputfile_name = str(each_folder) + '_clustered.fa' # "each_folder" is also the name of the locus
 		outputfile = open(outputfile_name, 'w')
 		os.chdir(each_folder)
 		bcodesForThisLocus = glob.glob("*")
@@ -214,7 +192,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, sizeThreshold, verbose_level = 1
 		for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
 			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
 				os.chdir(bcode_folder)
-				files_to_add = glob.glob("*Ss4.fa")
+				files_to_add = glob.glob("*consensus.fa")
 				for file in files_to_add: 
 					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
 				os.chdir('..')
