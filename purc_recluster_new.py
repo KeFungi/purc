@@ -206,7 +206,7 @@ def align_and_consensus(inputfile, output_prefix):
 
 	alignment = AlignIO.read(output_alignment, 'fasta')
 	summary_align = AlignInfo.SummaryInfo(alignment)
-	consensus = summary_align.gap_consensus(ambiguous='N')
+	consensus = summary_align.gap_consensus(ambiguous='N',threshold=0.51)
 	output = open(output_consensus, 'w')
 	output.write('>' + output_prefix + '\n' + str(consensus).replace('-','') + '\n')
 	return
