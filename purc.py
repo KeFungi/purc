@@ -971,14 +971,45 @@ else:
 					Recycle_chimera = True
 				else:
 					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
-
+	
 	# Check if dependencies are in place
+	sys.stderr.write('Checking dependencies...\n')
 	if not os.path.isfile(Usearch):
 		sys.exit("Error: couldn't find the Usearch executable")
 	if not os.path.isfile(Cutadapt):
 		sys.exit("Error: couldn't find the Cutadapt executable")
 	if not os.path.isfile(Muscle):
 		sys.exit("Error: couldn't find the Muscle executable")
+	
+	# Check if muscle can be executed
+	muscle_cline = '%s -version' % (Muscle)
+	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	if not str(out).startswith('MUSCLE'):
+		sys.exit("Error: could not execute Muscle")
+
+	# Check if Usearch can be executed
+	usearch_cline = '%s -version' % (Usearch)
+	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	if not str(out).startswith('usearch'):
+		sys.exit("Error: could not execute Usearch")
+
+	# Check if cutadapt can be executed
+	cutadapt_cline = '%s --help' % (Cutadapt)
+	process = subprocess.Popen(cutadapt_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	#print out
+	if not str(out).startswith('cutadapt'):
+		sys.exit("Error: could not execute Cutadapt")
+
+	# Check if blast can be execuated
+	blast_cline = 'blastn -version'
+	process = subprocess.Popen(blast_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	if not str(out).replace(' ','').startswith('blastn'):
+		sys.exit("Error: could not execute BLAST")
+
 
 	log = open(log_file, 'w')
 	log.write(logo + '\n')
@@ -1021,7 +1052,7 @@ else:
 
 
 ################################################ RUN YO!!! ########################################
-
+sys.stderr.write('Renaming sequences...\n')
 raw_sequences = rename_fasta(raw_sequences)
 
 if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
