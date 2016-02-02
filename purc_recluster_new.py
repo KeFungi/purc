@@ -210,8 +210,8 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 	return outFile
 
 def align_and_consensus(inputfile, output_prefix):
-	output_alignment = output_prefix + '_aligned.fa'
-	output_consensus = output_prefix + '_consensus.fa'
+	output_alignment = output_prefix.split(';')[0] + '_aligned.fa'
+	output_consensus = output_prefix.split(';')[0] + '_consensus.fa'
 	muscle_cline = '%s -in %s -out %s' % (Muscle, inputfile, output_alignment)
 	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
@@ -366,8 +366,27 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 						for seq in ClusterToSeq_dict4[each_cluster]:
 							cluster_seq_file.write('>' + seq + '\n' + str(SeqDict[seq].seq) + '\n')
 						cluster_seq_file.close()
-						new_seq_name = bcode_folder + '_' + each_cluster + '_size=' + str(len(ClusterToSeq_dict4[each_cluster]))
+						new_seq_name = bcode_folder + '_' + each_cluster + ';size=' + str(len(ClusterToSeq_dict4[each_cluster])) + ';'
 						align_and_consensus(each_cluster, new_seq_name)
+				
+				all_consensus_seq = open(bcode_folder + '_Cluster_Finalconsensus.fa', 'w')
+				files_to_add_reconsensus = glob.glob("*_consensus.fa")
+				for file in files_to_add_reconsensus: 
+					shutil.copyfileobj(open(file,'rb'), all_consensus_seq) #Add each file to the final output
+				all_consensus_seq.close()
+
+				usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, bcode_folder + '_Cluster_Finalconsensus.fa', bcode_folder + '_Cluster_FinalconsensusSs.fa')
+				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+				
+				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSs.fa', clustID3, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.uc')
+				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+
+				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (bcode_folder, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '_renamed.fa')
+				process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+
 
 				os.chdir("..") # To get out of the current barcode folder and ready for the next one
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
@@ -389,7 +408,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
 				os.chdir(bcode_folder)
 				files_to_add = glob.glob("*Ss4.fa")
-				files_to_add_reconsensus = glob.glob("*_consensus.fa")
+				files_to_add_reconsensus = glob.glob("*_Cluster_FinalconsensusSsC*_renamed.fa")
 				for file in files_to_add: 
 					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output
 
