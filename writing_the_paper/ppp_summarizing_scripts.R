@@ -2,11 +2,30 @@
 
 #Not sure why Rstudio won't let me open this from within the project
 #I have to right-click it and "open with Rstudio"
+# (maybe this is fixed now)
+
+### Folder organization scheme:
+# For these functions to work, the data have to be organized in a particular way 
+# (organized [poorly] with the "mainDirectory" setting below)
+## The uncleaned data (for plotting numbers of expected errors) are at:
+# mainDirectory/R2/1_calcultngEEs_noQC
+# mainDirectory/R3/1_calcultngEEs_noQC   etc
+## Then the PURC outputs are in mainDirectory/round/regime
+# e.g., mainDirectory/R2/R2a
+#       mainDirectory/R2/R2b   etc
+
+# The rounds refer to the three different pacbio submissions that we're analysing (R2, R3, and R4)
+# The regimes refer to the clustering settings that we're comparing (calling them A, B, C):
+# A: 0.999, 0.997, 0.990. B: 0.997, 0.995, 0.990. C: 0.990, 0.980, 0.970
+# (for all regimes, all clusters are retained after clusterings 1 and 2, and only 
+# clusters >3sequences in size after clustering 3.)
+
 
 library(ape)
 
 figureDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures/"
 mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/aa_data_and_analysis/201509_analysesformanuscript/"
+
 
 #### Producing histograms of the number of expected errors per sequence
 # Using the data from each run that are >600bp

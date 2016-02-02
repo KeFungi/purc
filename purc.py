@@ -4,7 +4,7 @@ logo = """
 -------------------------------------------------------------
 |                            PURC                           |
 |        Pipeline for Untangling Reticulate Complexes       |
-|                        version 0.99                       | 
+|                        version 1.0                        | 
 |            https://bitbucket.org/crothfels/ppp            |
 |															|
 |                 Fay-Wei Li & Carl J Rothfels              |
@@ -25,7 +25,7 @@ This script relies heavily on USEARCH, MUSCLE, and BLAST.
 If this script assisted with a publication, please cite the following papers
 (or updated citations, depending on the versions of USEARCH, etc., used).
 
-PPP: 
+PURC: 
 -Awesome paper by carl and fay-wei. Awesome journal. Awesome page numbers.
 
 USEARCH/UCLUST: 
@@ -65,7 +65,7 @@ def parse_fasta(infile):
 	return [i for i in AllSeq] 
 
 def rename_fasta(infile):
-	"""Make sure no ';' or '='' or '/'' characters in the fasta file, so that they won't confuse blast"""
+	"""Makes sure there are no ';' or '='' or '/'' characters in the fasta file, so that they won't confuse blast"""
 	prefix = infile.replace('.fasta', '').replace('.fas', '').replace('.fa', '').replace('.txt', '')
 	outfile = prefix + '_renamed.fasta'
 	sed_cmd = "sed 's/;/_/g;s/=/_/g;s/\//_/g' %s > %s" % (infile, outfile)
@@ -74,7 +74,7 @@ def rename_fasta(infile):
 	return outfile
 
 def count_seq_from_fasta(infile):
-	"""Yep. Just return the sequence number from a fasta file"""
+	"""Yep. Just returns the number of sequence contain in a fasta file"""
 	cmdLine = "grep '>' %s | wc -w" % infile
 	process = subprocess.Popen(cmdLine, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()	
@@ -101,13 +101,13 @@ def makeBlastDB(inFileName, outDBname):
 	return
 
 def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc nident mismatch length pident bitscore'):	
-	"""Calls blastn, the output format can be changed by outfmt. Requires the blast database to be made already"""
+	"""Calls blastn. The output format can be changed by outfmt. Requires the blast database to be made already"""
 	blastn_cLine = "blastn -query %s -task blastn -num_threads 8 -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, databasefile, outputfile, evalue, max_target, outfmt)
 	os.popen(blastn_cLine)	
 	return
 
 def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict, SplitChimera=False):
-	"""Blast each input sequences to the reference database to detect chimeric sequences (i.e. a sequence hit to two different loci) 
+	"""Blastes each input sequence to the reference database to detect chimeric sequences (i.e. a sequence that matches two different loci) 
 	Return "chimera_dict", in which the sequence name is the key and [locus_name1, locus_name2] is the value
 	If SplitChimera = True, then will split the chimeric sequence into two loci, based on the coordinates returned from BLAST. 
 		NOTE: to ensure the BC are split together with each locus, the orientation/strand also matters. 
@@ -441,7 +441,7 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	bc_invalid.close()
 
 def DeBarcoder_SWalign(SeqDict, barcode_seq_filename, Output_folder, Output_prefix, search_range=25):
-	"""Use Smith-Waterman local alignment to find barcodes, slow"""
+	"""Use Smith-Waterman local alignment to find barcodes. This approach is slow; recommended as a last resort"""
 	sw = swalign.LocalAlignment(swalign.NucleotideScoringMatrix(2, -1))
 
 	barcode_seq = parse_fasta(barcode_seq_filename)
