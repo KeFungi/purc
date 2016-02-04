@@ -1,19 +1,19 @@
 ***Important ones***
 [Files]
-Input_sequence_file		= 1-PacBio_seq.fasta
+Input_sequence_file		= 1-PacBio_seq.fasta	# Fasta file containing your sequencing reads
 in_Barcode_seq_file		= 2-barcodes.fasta		# Fasta file containing barcode names and sequences; the input for making blast database
 in_RefSeq_seq_file		= 3-ref_sequences.fasta	# Fasta file containing reference names and sequences; the input for making blast database
-Output_prefix			= purc_run
-Output_folder			= purc_out_reclustered
-Log_file				= 
+Output_prefix			= purc_run				# The prefix for output files
+Output_folder			= purc_out_test			# The folder in where all purc output will be saved
+Log_file				= log					# If left empty, default time-stamped log file name will be used
 
 [Loci]
 Locus_name				= ApP, GAP, IBR, PGI	# The order must be identical to that in Locus-barcode-taxon_map
 Locus-barcode-taxon_map	= 4-map_APP.txt, 4-map_GAP.txt, 4-map_IBR.txt, 4-map_PGI.txt
 
 [Primers]
-Forward_primer			= GGACCTGGSCTYGCTGARGAGTG, TCTGCMCATGCMATTGAAAGAGAG, GAGYGTTTGGAATGTYTCWTTCCTYGG, CYACMAACTGCCTTGCRCCTCTTGCC	# 5'-3'
-Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACATDTGMAGCATCACAAAC, GCTTTCCATACTAAGCTGCAGAC		# 5'-3'
+Forward_primer			= GGACCTGGSCTYGCTGARGAGTG, TCTGCMCATGCMATTGAAAGAGAG, GAGYGTTTGGAATGTYTCWTTCCTYGG, CYACMAACTGCCTTGCRCCTCTTGCC	# 5'-3' The order does not matter
+Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACATDTGMAGCATCACAAAC, GCTTTCCATACTAAGCTGCAGAC		# 5'-3' The order does not matter
 
 ***Setting up PURC run***
 [PPP_Configuration]
@@ -33,16 +33,17 @@ Align					= 1		# 0: No aligning attempted. 1: Final consensus sequences will be 
 
 ***Miscellaneous***
 [Clustering Parameters]
-clustID 				= 0.997 	# The similarity criterion for the initial USEARCH clustering
+clustID1				= 0.997 	# The similarity criterion for the initial USEARCH clustering
 clustID2 				= 0.995 	# The similarity criterion for the second clustering
 clustID3 				= 0.990 	# The similarity criterion for the third clustering
-sizeThreshold 			= 1 		# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+clustID4 				= 0.997 	# The similarity criterion for the FINAL clustering to remove identical/near identical clusters 
+sizeThreshold1			= 1 		# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
 [Dependencies]
-Usearch 				= Dependencies/usearch8.1.1756		# The name of (or path to) Usearch executable; Here use the executables come together with PURC
+Usearch 				= Dependencies/usearch8.1.1756							# The name of (or path to) Usearch executable; Here use the executables come together with PURC
 Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
-Muscle 					= Dependencies/muscle3.8.31			# The name of (or path to) Muscle executable; Here use the executables come together with PURC
+Muscle 					= Dependencies/muscle3.8.31								# The name of (or path to) Muscle executable; Here use the executables come together with PURC
 
 [Miscellaneous]
 seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_			# Remove this from sequence names
