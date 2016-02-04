@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+
+logo = """
+-------------------------------------------------------------
+|                            PURC                           |
+|        Pipeline for Untangling Reticulate Complexes       |
+|                        version 1.0                        | 
+|            https://bitbucket.org/crothfels/ppp            |
+|															|
+|                 Fay-Wei Li & Carl J Rothfels              |
+|           see purc.py script for more information         |
+-------------------------------------------------------------
+""" 
+
 import sys
 import os
 import re
@@ -18,12 +31,12 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster_new.py annoated_file output_folder clustID1 clustID2 clustID3 sizeThreshold1 sizeThreshold2
+Usage: ./purc_recluster_new.py annotated_file output_folder clustID1 clustID2 clustID3 sizeThreshold1 sizeThreshold2
 Example: ./purc_recluster_new.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 1 4
 
 Note: 
-(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
-(2) sizeThreshold1-2 : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+(1) clustID1-3: The similarity criterion for the first, second and third USEARCH clustering
+(2) sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
 	"""
 
@@ -448,7 +461,7 @@ ts = time.time()
 time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
 log_file = 'purc_log_' + time_stamp + '.txt'
 log = open(log_file, 'w')
-
+log.write(logo + '\n')
 log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
 
 ## Recluster and redechimera ##
