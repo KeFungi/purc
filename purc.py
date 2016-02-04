@@ -784,13 +784,12 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 def deChimeIt(file, round, verbose_level=0):
 	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s" % (Usearch, file, outFile)
+	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
+	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
 	if verbose_level in [1, 2]:
-		#print '\n**Uchime output on', file, '**\n'
-		#print err
 		log.write('\n**Uchime output on' + str(file) + '**\n')
 		log.write(str(err))
 	return outFile

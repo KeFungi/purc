@@ -31,11 +31,11 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster_new.py annotated_file output_folder clustID1 clustID2 clustID3 sizeThreshold1 sizeThreshold2
-Example: ./purc_recluster_new.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 1 4
+Usage: ./purc_recluster_new.py annotated_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2
+Example: ./purc_recluster_new.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 0.997 1 4
 
 Note: 
-(1) clustID1-3: The similarity criterion for the first, second and third USEARCH clustering
+(1) clustID1-4: The similarity criterion for the first, second and third USEARCH clustering
 (2) sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
 	"""
@@ -379,11 +379,11 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 				
-				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSs.fa', clustID3, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.uc')
+				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSs.fa', clustID4, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.uc')
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
-				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (bcode_folder, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID3) + '_renamed.fa')
+				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (bcode_folder, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '_renamed.fa')
 				process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
@@ -444,8 +444,9 @@ masterFolder = sys.argv[2]
 clustID = float(sys.argv[3])
 clustID2 = float(sys.argv[4])
 clustID3 = float(sys.argv[5])
-sizeThreshold = int(sys.argv[6])
-sizeThreshold2 = int(sys.argv[7])
+clustID4 = float(sys.argv[6])
+sizeThreshold = int(sys.argv[7])
+sizeThreshold2 = int(sys.argv[8])
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
