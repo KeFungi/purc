@@ -166,16 +166,23 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 def deChimeIt(file, round, verbose_level=0):
 	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s" % (Usearch, file, outFile)
+	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
+	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
 	if verbose_level in [1, 2]:
-		#print '\n**Uchime output on', file, '**\n'
-		#print err
 		log.write('\n**Uchime output on' + str(file) + '**\n')
 		log.write(str(err))
-	return outFile
+
+	# count number of chimera seq found by parsing 'outFile_uchime'
+	chimera_count = 0
+	uchime_out = open(outFile_uchime, 'rU')
+	for line in uchime_out:
+		line = line.strip('\n')
+		if line.split('\t')[-1] == 'Y':
+			chimera_count = chimera_count + 1
+	return outFile, chimera_count
 
 def sortIt_length(file, verbose_level=0):
 	"""Sorts clusters by seq length"""
@@ -234,7 +241,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 	all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
 		# folders) and they correspond to the counts for each.
 	LocusTaxonCountDict_clustd = {}
-
+	LocusTaxonCountDict_chimera = {}
 	for each_folder in all_folders_loci: 
 		os.chdir(each_folder)
 		sys.stderr.write('\nWorking on: ' + each_folder + '...\n')
@@ -261,7 +268,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 
 				if verbose_level in [1,2]:
 					log.write("\tFirst chimera slaying expedition\n")
-				deChimered1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
+				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
@@ -271,7 +278,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
-				deChimered2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
+				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
@@ -281,7 +288,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\Forth clustering\n")
@@ -291,7 +298,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
+				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
 
 				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
@@ -310,6 +317,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 					if verbose_level in [1,2]:
 						log.write(str(sorted_size4) + 'is an empty file\n')
 
+				LocusTaxonCountDict_chimera[taxon_name, each_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4]
 				### Collect all sequences from each cluster and re-consensus ###
 				# Go through the first clustering uc file
 				ClusterToSeq_dict1 = {}
@@ -526,6 +534,19 @@ for each_locus in locus_list:
 		count_output.write(str(each_locus) + '\t0\n')			
 		log.write(str(each_locus) + '\t0\n')			
 
+count_output.write('\n**Chimeric clusters/sequence count by locus**\n')	
+for each_locus in locus_list:
+	count_output.write(each_locus + '\n')		
+	#log.write(each_locus + '\t')		
+	for each_taxon in set(taxon_list):
+		try:
+			count_output.write('\t' + each_taxon + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][0]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][1]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][2]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][3]) + '\t')		
+		except:
+			count_output.write('\t' + each_taxon)	
+		
+		count_output.write('\n')		
+	#log.write('\n')		
+
 ## Clean-up the sequence names ##
 sys.stderr.write("Cleaning up the file names\n")
 fastas = glob.glob("*_clustered.txt")
@@ -547,7 +568,7 @@ for file in fastas:
 	log.write("Aligning " + file + "\n")
 	outFile = muscleIt(file)
 	
-fastas = glob.glob("*_reconsensus.fa")
+fastas = glob.glob("*_clustered_reconsensus.fa")
 for file in fastas:
 	sys.stderr.write("Aligning " + file + "\n")
 	log.write("Aligning " + file + "\n")
