@@ -379,7 +379,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 				
-				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSs.fa', clustID4, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.uc')
+				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -msaout alignments -uc %s -sizein -sizeout" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSs.fa', clustID4, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.uc')
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
