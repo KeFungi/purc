@@ -1296,7 +1296,7 @@ for each_folder in all_folders_loci:
 				shutil.copyfileobj(open(file,'rb'), all_consensus_seq) #Add each file to the final output
 			all_consensus_seq.close()
 
-			usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, bcode_folder + '_Cluster_Finalconsensus.fa', bcode_folder + '_Cluster_FinalconsensusSs.fa')
+			usearch_cline = "%s -sortbysize %s -fastaout %s" %(Usearch, bcode_folder + '_Cluster_Finalconsensus.fa', bcode_folder + '_Cluster_FinalconsensusSs.fa')
 			process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 			(out, err) = process.communicate() #the stdout and stderr
 			
