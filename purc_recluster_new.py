@@ -427,7 +427,7 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 		os.chdir('..')
 		outputfile.close()
 
-	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd
+	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera
 
 def muscleIt(file, verbose_level=0):
 	"""Aligns the sequences using MUSCLE"""
@@ -474,7 +474,7 @@ log.write(logo + '\n')
 log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
 
 ## Recluster and redechimera ##
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 taxon_list = []
 locus_list = []
