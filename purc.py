@@ -1230,7 +1230,6 @@ for each_folder in all_folders_loci:
 				if verbose_level in [1,2]:
 					log.write(str(sorted_size4) + 'is an empty file\n')
 
-			LocusTaxonCountDict_chimera[taxon_name, each_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4]
 			### Collect all sequences from each cluster and re-consensus ###
 			# Go through the first clustering uc file
 			ClusterToSeq_dict1 = {}
@@ -1304,7 +1303,19 @@ for each_folder in all_folders_loci:
 			process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 			(out, err) = process.communicate() #the stdout and stderr
 
-			sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (bcode_folder, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '_renamed.fa')
+			usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
+			process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+			(out, err) = process.communicate() #the stdout and stderr
+			# count number of chimera seq found by parsing 'outFile_uchime'
+			chimera_count5 = 0
+			uchime_out = open(bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime', 'rU')
+			for line in uchime_out:
+				line = line.strip('\n')
+				if line.split('\t')[-1] == 'Y':
+					chimera_count5 = chimera_count5 + 1
+			LocusTaxonCountDict_chimera[taxon_name, each_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5]
+
+			sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (bcode_folder, bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', bcode_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh_renamed.fa')
 			process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 			(out, err) = process.communicate() #the stdout and stderr
 
@@ -1439,7 +1450,7 @@ for each_locus in locus_list:
 	#log.write(each_locus + '\t')		
 	for each_taxon in set(taxon_list):
 		try:
-			count_output.write('\t' + each_taxon + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][0]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][1]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][2]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][3]) + '\t')		
+			count_output.write('\t' + each_taxon + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][0]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][1]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][2]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][3]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][4]))		
 		except:
 			count_output.write('\t' + each_taxon)	
 		
