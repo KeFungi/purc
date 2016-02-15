@@ -4,7 +4,7 @@ Input_sequence_file		= 1-PacBio_seq.fasta	# Fasta file containing your sequencin
 in_Barcode_seq_file		= 2-barcodes.fasta		# Fasta file containing barcode names and sequences; the input for making blast database
 in_RefSeq_seq_file		= 3-ref_sequences.fasta	# Fasta file containing reference names and sequences; the input for making blast database
 Output_prefix			= purc_run				# The prefix for output files
-Output_folder			= purc_out_test			# The folder in where all purc output will be saved
+Output_folder			= purc_out				# The folder in where all purc output will be saved
 Log_file				= log					# If left empty, default time-stamped log file name will be used
 
 [Loci]
@@ -49,7 +49,5 @@ Muscle 					= Dependencies/muscle3.8.31								# The name of (or path to) Muscle
 seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_			# Remove this from sequence names
 Barcode_blastDB			= barcode_blastdb		# The name of the barcode blast database 
 RefSeq_blastDB			= refseq_blastdb		# The name of the reference sequence blast database 
-split_type				= barcode		# The category used to split the annotated sequences (either "locus", "barcode", "group", "taxon", "taxon-locus", or "locus-taxon". Do not include the quotation marks).
-									# This is only useful for mode 2 (modes 0 & 1 split by locus and then by barcode)
-verbose_level 			= 0			# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
+verbose_level 			= 2						# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
 

@@ -1,7 +1,35 @@
 #!/usr/bin/env python
+
+logo = """
+-------------------------------------------------------------
+|                            PURC                           |
+|        Pipeline for Untangling Reticulate Complexes       |
+|                        version 1.0                        | 
+|            https://bitbucket.org/crothfels/ppp            |
+|															|
+|                 Fay-Wei Li & Carl J Rothfels              |
+|           see purc.py script for more information         |
+-------------------------------------------------------------
+""" 
+	
 import sys
 import os
 from Bio import SeqIO
+
+
+usage = """
+
+Use this script to split an annotated fasta file based on taxon, barcode, locus, or group. 
+
+Usage: ./purc_resplit.py annoated_file split_type
+Example: ./purc_resplit.py purc_run_3_annotated.fa barcode
+
+Note: 
+(1) Possible split_type: barcode, locus, taxon, group
+(2) If one barcode contains multiple samples, then pass the -M argument. e.g. ./purc_resplit.py purc_run_3_annotated.fa barcode -M  
+
+	"""
+
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
 	AllSeq = SeqIO.parse(infile, 'fasta')
@@ -64,18 +92,7 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 
 
 if len(sys.argv) < 3:
-	sys.exit("""
-
-Use this script to split an annotated fasta file based on taxon, barcode, loci, or group. 
-
-Usage: ./purc_resplit.py annoated_file split_type
-Example: ./purc_resplit.py purc_run_3_annotated.fa barcode
-
-Note: 
-(1) Possible split_type: barcode, locus, taxon, group
-(2) If one barcode contains multiple samples, then pass the -M argument. e.g. ./purc_resplit.py purc_run_3_annotated.fa barcode -M  
-
-	""")
+	sys.exit(usage)
 
 annotated_file = sys.argv[1]
 split_type = sys.argv[2]
