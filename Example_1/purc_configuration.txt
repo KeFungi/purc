@@ -46,8 +46,10 @@ Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or pat
 Muscle 					= Dependencies/muscle3.8.31								# The name of (or path to) Muscle executable; Here use the executables come together with PURC
 
 [Miscellaneous]
-seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_			# Remove this from sequence names
+Threads					= 8						# The number of threads for running BLAST
+Verbose_level 			= 2						# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
+Remove_intermediates	= 0						# 0: keep all the intermediate files, 1: remove intermediate files
 Barcode_blastDB			= barcode_blastdb		# The name of the barcode blast database 
 RefSeq_blastDB			= refseq_blastdb		# The name of the reference sequence blast database 
-verbose_level 			= 2						# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
+seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_			# Remove this from sequence names
 

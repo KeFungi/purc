@@ -11,11 +11,6 @@ logo = """
 |           see purc.py script for more information         |
 -------------------------------------------------------------
 """ 
-	
-import sys
-import os
-from Bio import SeqIO
-
 
 usage = """
 
@@ -28,7 +23,11 @@ Note:
 (1) Possible split_type: barcode, locus, taxon, group
 (2) If one barcode contains multiple samples, then pass the -M argument. e.g. ./purc_resplit.py purc_run_3_annotated.fa barcode -M  
 
-	"""
+"""
+	
+import sys
+import os
+from Bio import SeqIO
 
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""

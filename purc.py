@@ -102,9 +102,9 @@ def makeBlastDB(inFileName, outDBname):
 		log.write(str(out))
 	return
 
-def BlastSeq(inputfile, outputfile, databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc nident mismatch length pident bitscore'):	
+def BlastSeq(inputfile, outputfile, databasefile, num_threads=1, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc nident mismatch length pident bitscore'):	
 	"""Calls blastn. The output format can be changed by outfmt. Requires the blast database to be made already"""
-	blastn_cLine = "blastn -query %s -task blastn -num_threads 8 -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, databasefile, outputfile, evalue, max_target, outfmt)
+	blastn_cLine = "blastn -query %s -task blastn -num_threads %s -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, num_threads, databasefile, outputfile, evalue, max_target, outfmt)
 	os.popen(blastn_cLine)	
 	return
 
@@ -114,7 +114,7 @@ def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_good
 	If SplitChimera = True, then will split the chimeric sequence into two loci, based on the coordinates returned from BLAST. 
 		NOTE: to ensure the BC are split together with each locus, the orientation/strand also matters. 
 	"""
-	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
+	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, num_threads=num_threads, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
 	
 	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result
 	chimeras = open(outputfile_chimeras, 'w') # File to save chimera sequences
@@ -192,7 +192,7 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 	Note that the range of acceptable bc starting point is hardcoded here, e.g. "if barcode_info_dict[each_seq][1] < 15:", "elif barcode_info_dict[each_seq][1] > len(str(SeqDict[each_seq].seq))-40:"
 	"""
 	
-	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
 	bc_blast = open(Output_folder + '/blast_barcode_out.txt', 'rU') # Read the blast result
 	bc_trimmed = open(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', 'w') # For writing the de-barcoded sequences
@@ -274,8 +274,8 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 
 	F_ends.close()
 	R_ends.close()
-	BlastSeq('tempF', Output_folder + '/blast_barcodeF_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
-	BlastSeq('tempR', Output_folder + '/blast_barcodeR_out.txt', databasefile, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	BlastSeq('tempF', Output_folder + '/blast_barcodeF_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	BlastSeq('tempR', Output_folder + '/blast_barcodeR_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 
 	seq_withbc_list = [] # A list containing all the seq names that have barcodes
 	seq_withbc_morethanone_list = [] # A list containing all the seq names that have more than one barcode
@@ -349,7 +349,7 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	Note that the range of acceptable bc starting point is hardcoded here, e.g. "if barcode_info_dict[each_seq][0][1] < 5" and "elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30".
 	"""
 	
-	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, evalue=1, max_target=2, outfmt='6 qacc sacc length pident bitscore qstart qend')
+	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=2, outfmt='6 qacc sacc length pident bitscore qstart qend')
 	
 	bc_blast = open(Output_folder + '/blast_barcode_out.txt', 'rU') # Read the blast result
 	bc_trimmed = open(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', 'w') # For writing the de-barcoded sequences
@@ -608,7 +608,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for a particular locus as specified by map_locus; returns a dictionary containing taxon-locus seq counts"""		
 	
 	# Blasts each sequence in the input file (e.g., BC01.fa) against the reference sequences
-	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
+	BlastSeq(filetoannotate, Output_folder + '/blast_refseq_out.txt', BLAST_DBs_folder + '/' + refseq_databasefile, num_threads=num_threads, evalue=0.0000001, max_target=1, outfmt='6 qacc sacc length pident evalue qstart qend qlen')
 	
 	# Reads the  sequences as a dict
 	SeqDict = SeqIO.index(filetoannotate, 'fasta') 
@@ -990,6 +990,12 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
+				## Remove intermediate files if requsted ##
+				if remove_intermediates == 1:
+					filt_to_remove = list(set(glob.glob('*')) - set(glob.glob('*_renamed.fa')) - set(glob.glob(taxon_folder+'.fa')))
+					for file in filt_to_remove:
+						os.remove(file)
+
 				os.chdir("..") # To get out of the current barcode folder and ready for the next one
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
 	log.write('\t...done\n\n')	
@@ -1050,6 +1056,7 @@ else:
 	sizeThreshold = 1
 	sizeThreshold2 = 4
 	verbose_level = 0
+	num_threads = 1
 	barcode_databasefile = 'barcode_blastdb'
 	refseq_databasefile = 'refseq_blastdb'
 	Use_bundled_dependencies = True
@@ -1119,8 +1126,14 @@ else:
 				Reverse_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')					
 			elif setting_name == 'seq_name_toErase':
 				seq_name_toErase = setting_argument
-			elif setting_name == 'verbose_level':
+			elif setting_name == 'Verbose_level':
 				verbose_level = int(setting_argument)	
+			
+			elif setting_name == 'Threads':
+				num_threads = int(setting_argument)				
+			elif setting_name == 'Remove_intermediates':
+				remove_intermediates = int(setting_argument)
+
 			elif setting_name == 'in_Barcode_seq_file':	
 				barcode_seq_filename = setting_argument
 				if not os.path.isfile(barcode_seq_filename):

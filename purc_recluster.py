@@ -12,19 +12,6 @@ logo = """
 -------------------------------------------------------------
 """ 
 
-import sys
-import os
-import re
-import subprocess
-import glob
-import shutil
-import time
-import datetime
-from Bio import SeqIO
-from Bio import AlignIO
-from Bio.Align import AlignInfo
-
-
 usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
@@ -36,7 +23,41 @@ Note:
 (1) clustID1-4: The similarity criterion for the first, second, third and forth USEARCH clustering
 (2) sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
-	"""
+"""
+
+citation = """
+This script relies heavily on USEARCH, and MUSCLE.
+If this script assisted with a publication, please cite the following papers
+(or updated citations, depending on the versions of USEARCH, etc., used).
+
+PURC: 
+-Awesome paper by carl and fay-wei. Awesome journal. Awesome page numbers.
+
+USEARCH/UCLUST: 
+-Edgar, R.C. 2010. Search and clustering orders of magnitude faster than BLAST. 
+Bioinformatics 26(19), 2460-2461.
+
+UCHIME:
+-Edgar, R.C., B.J. Haas, J.C. Clemente, C. Quince, R. Knight. 2011. 
+UCHIME improves sensitivity and speed of chimera detection, Bioinformatics 27(16), 2194-2200.
+
+MUSCLE:
+-Edgar, R.C. 2004. MUSCLE: Multiple sequence alignment with high accuracy and high throughput. 
+Nucleic Acids Research 32:1792-1797.
+"""
+
+
+import sys
+import os
+import re
+import subprocess
+import glob
+import shutil
+import time
+import datetime
+from Bio import SeqIO
+from Bio import AlignIO
+from Bio.Align import AlignInfo
 
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
