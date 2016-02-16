@@ -106,9 +106,6 @@ This assumes that the purc script (and Dependencies directory) is in /Users/fayw
 purc.py purc_configuration.txt
 ```
 
-## TODOS ##
-### describe the output files produced (e.g., BC16_SlC1_0.997dCh1Ss1C2_0.995dCh2Ss2C3_0.99dCh3Ss3, the .uc ones, etc)
-
 ### Example 1 - PacBio ###
 In this dataset, four loci were amplified from 30 *Cystopteris* specimens. Each specimen was labeled with a unique barcode, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because each barcode corresponds to a single specimen, in the configuration file we specify: 
 ```
@@ -183,9 +180,17 @@ BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
 
 
 ### FAQ ###
-ERRmidBC
+* What does "ERRmidBC" flag mean?
+ 
+     It indicates that PURC identified a barcode sequence in the middle of the reads (not at the ends). The reason could be PCR artifacts, or a stretch of reads that resemble one of the barcodes. If latter, then use 
 
+        Barcode_detection = 1
+
+     in configuration file to restrict barcode identification to the ends of sequences.
+
+* What are the output files produced (e.g., BC16_SlC1_0.997dCh1Ss1C2_0.995dCh2Ss2C3_0.99dCh3Ss3, the .uc ones, etc)
 
 ### Who do I talk to? ###
 Fay-Wei Li
+
 Carl Rothfels
