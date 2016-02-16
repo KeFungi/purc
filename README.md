@@ -106,6 +106,20 @@ This assumes that the purc script (and Dependencies directory) is in /Users/fayw
 purc.py purc_configuration.txt
 ```
 
+After PURC finishes successfully, you should find the final clustered sequences in ```[prefix]_4_[locus]_clustered_reconsensus.fa```, and the aligned sequences in ```[prefix]_4_[locus]_clustered_reconsensus.afa```
+
+
+### Examples ###
+The PURC package comes with three examples (see below). To run, simply:
+
+```
+#!shell
+
+cd /Users/fayweili/Programs/purc/Example_1
+/Users/fayweili/Programs/purc/purc.py purc_configuration.txt
+```
+
+
 ### Example 1 - PacBio ###
 In this dataset, four loci were amplified from 30 *Cystopteris* specimens. Each specimen was labeled with a unique barcode, and all the PCR reactions were pooled together and sequenced in one PacBio SMRT cell. Because each barcode corresponds to a single specimen, in the configuration file we specify: 
 ```
@@ -182,15 +196,20 @@ BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
 ### FAQ ###
 * What does "ERRmidBC" flag mean?
  
-     It indicates that PURC identified a barcode sequence in the middle of the reads (not at the ends). The reason could be PCR artifacts, or a stretch of reads that resemble one of the barcodes. If latter, then use 
+     It indicates that PURC identified a barcode sequence in the middle of the read (not at the ends). The reason could be PCR/sequencing artifacts, or a stretch of reads that resemble one of the barcodes. If latter, then use 
 
         Barcode_detection = 1
 
-     in configuration file to restrict barcode identification to the ends of sequences.
+     in configuration file to restrict barcode identification at the ends of sequences.
 
-* What are the output files produced (e.g., BC16_SlC1_0.997dCh1Ss1C2_0.995dCh2Ss2C3_0.99dCh3Ss3, the .uc ones, etc)
+* What are the output files produced (e.g., BC16_SlC1_0.997dCh1Ss1C2_0.995dCh2Ss2C3_0.99dCh3Ss3.fa, the .uc ones, etc)?
+
+     PURC produces a number of intermediate files during the clustering/chimera-killing steps. The '.uc' and '.uchime' files are from USEARCH and UCHIME, respectively, and contain detailed clustering and chimera detection results. The fasta files from each clustering/chimera-killing steps are saved as well. 'Sl' means fasta sorted by length, 'C1_0.997' means the first clustering with identity of 0.997, 'dCh1' means the first chimera detection, 'Ss' means fasta sorted by cluster size. If you don't want to keep all these intermediate files (to save space for example), in configuration file use 
+
+        Remove_intermediates = 1
+
 
 ### Who do I talk to? ###
-Fay-Wei Li
+Fay-Wei Li ([fl43@duke.edu](fl43@duke.edu))
 
-Carl Rothfels
+Carl Rothfels ([crothfels@yahoo.ca](crothfels@yahoo.ca))
