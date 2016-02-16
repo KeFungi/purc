@@ -108,6 +108,27 @@ purc.py purc_configuration.txt
 
 After PURC finishes successfully, you should find the final clustered sequences in ```[prefix]_4_[locus]_clustered_reconsensus.fa```, and the aligned sequences in ```[prefix]_4_[locus]_clustered_reconsensus.afa```
 
+### Step 4: recluster ###
+If you want to adjust clustering parameters, instead of re-running the whole thing, you can start from the annotated fasta file by using ```purc_recluster.py.``` 
+
+Usage: 
+```
+./purc_recluster.py annotated_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2 abuncdance_skew
+```
+
+Example: 
+```
+./purc_recluster.py purc_run_3_annotated.fa recluster 0.997 0.995 0.99 0.997 1 4 1.9
+```
+
+Note: 
+
+* clustID1-4: The similarity criterion for the first, second, third and forth USEARCH clustering
+
+* sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+
+* abuncdance_skew: An optional parameter to control chimera-killing; the default is 1.9
+
 
 ### Examples ###
 The PURC package comes with three examples (see below). To run, simply:
