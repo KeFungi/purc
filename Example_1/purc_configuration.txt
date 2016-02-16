@@ -40,6 +40,9 @@ clustID4 				= 0.997 	# The similarity criterion for the FINAL clustering to rem
 sizeThreshold1			= 1 		# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
+[Chimera-killing Parameters]
+abundance_skew			= 1.9		
+
 [Dependencies]
 Usearch 				= Dependencies/usearch8.1.1756							# The name of (or path to) Usearch executable; Here use the executables come together with PURC
 Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC

@@ -16,12 +16,13 @@ usage = """
 
 Use this script to recluster the alleles/homeologs from a previous PURC run. 
 
-Usage: ./purc_recluster_new.py annotated_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2
-Example: ./purc_recluster_new.py purc_run_3_annotated.fa recluster 0.997 0.995 0.99 0.997 1 4
+Usage: ./purc_recluster_new.py annotated_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2 abuncdance_skew
+Example: ./purc_recluster_new.py purc_run_3_annotated.fa recluster 0.997 0.995 0.99 0.997 1 4 1.9
 
 Note: 
 (1) clustID1-4: The similarity criterion for the first, second, third and forth USEARCH clustering
 (2) sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+(3) abuncdance_skew: An optional parameter to control chimera-killing; the default is 1.9
 
 """
 
@@ -182,11 +183,11 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 	return outFile, ClusterToCentroid_dict, outClustFile
 
 # This function looks for PCR chimeras -- those formed within a single amplicon pool
-def deChimeIt(file, round, verbose_level=0):
-	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
+def deChimeIt(file, round, abskew=1.9, verbose_level=0):
+	"""Chimera remover"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
+	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, file, abskew, outFile, outFile_uchime)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
@@ -288,7 +289,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				if verbose_level in [1,2]:
 					log.write("\tFirst chimera slaying expedition\n")
-				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
+				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, abskew = abskew, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
@@ -297,7 +298,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
-				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
+				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, abskew = abskew, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
@@ -306,7 +307,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, abskew = abskew, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\Forth clustering\n")
@@ -315,7 +316,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
+				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, abskew = abskew, verbose_level = verbose_level)
 
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
@@ -408,7 +409,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
-				usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
+				usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', abskew, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 				
@@ -471,7 +472,7 @@ def muscleIt(file, verbose_level=0):
 	return outFile
 
 ###### RUN ######	
-if len(sys.argv) < 7:
+if len(sys.argv) < 8:
 	sys.exit(usage)
 
 annotated_file = sys.argv[1]
@@ -482,6 +483,11 @@ clustID3 = float(sys.argv[5])
 clustID4 = float(sys.argv[6])
 sizeThreshold = int(sys.argv[7])
 sizeThreshold2 = int(sys.argv[8])
+
+try:
+	abskew = sys.argv[9]
+except:
+	abskew = str(1.9)
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'

@@ -768,11 +768,11 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 	return outFile, ClusterToCentroid_dict, outClustFile
 
 # This function looks for PCR chimeras -- those formed within a single amplicon pool
-def deChimeIt(file, round, verbose_level=0):
-	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
+def deChimeIt(file, round, abskew=1.9, verbose_level=0):
+	"""Chimera remover"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
+	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, file, abskew, outFile, outFile_uchime)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
@@ -853,7 +853,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				if verbose_level in [1,2]:
 					log.write("\tFirst chimera slaying expedition\n")
-				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
+				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, abskew = abskew, verbose_level = verbose_level)
 					
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
@@ -862,7 +862,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
-				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
+				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, abskew = abskew, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
@@ -871,7 +871,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, abskew = abskew, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\Forth clustering\n")
@@ -880,7 +880,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
+				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, abskew = abskew, verbose_level = verbose_level)
 
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
@@ -972,7 +972,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 
-				usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s -uchimeout %s" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
+				usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', abskew, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
 				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 				(out, err) = process.communicate() #the stdout and stderr
 				
@@ -1055,6 +1055,7 @@ else:
 	clustID4 = 0.997
 	sizeThreshold = 1
 	sizeThreshold2 = 4
+	abskew = 1.9
 	verbose_level = 0
 	num_threads = 1
 	barcode_databasefile = 'barcode_blastdb'
@@ -1119,7 +1120,9 @@ else:
 			elif setting_name == 'sizeThreshold1':
 				sizeThreshold = float(setting_argument)	
 			elif setting_name == 'sizeThreshold2':
-				sizeThreshold2 = float(setting_argument)					
+				sizeThreshold2 = float(setting_argument)	
+			elif setting_name == 'abundance_skew':
+				abskew = str(setting_argument)		
 			elif setting_name == 'Forward_primer':
 				Forward_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')
 			elif setting_name == 'Reverse_primer':
@@ -1127,13 +1130,11 @@ else:
 			elif setting_name == 'seq_name_toErase':
 				seq_name_toErase = setting_argument
 			elif setting_name == 'Verbose_level':
-				verbose_level = int(setting_argument)	
-			
+				verbose_level = int(setting_argument)			
 			elif setting_name == 'Threads':
 				num_threads = int(setting_argument)				
 			elif setting_name == 'Remove_intermediates':
 				remove_intermediates = int(setting_argument)
-
 			elif setting_name == 'in_Barcode_seq_file':	
 				barcode_seq_filename = setting_argument
 				if not os.path.isfile(barcode_seq_filename):
