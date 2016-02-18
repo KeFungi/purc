@@ -1,4 +1,53 @@
 #!/usr/bin/env python
+
+logo = """
+-------------------------------------------------------------
+|                            PURC                           |
+|        Pipeline for Untangling Reticulate Complexes       |
+|                        version 1.0                        | 
+|            https://bitbucket.org/crothfels/ppp            |
+|															|
+|                 Fay-Wei Li & Carl J Rothfels              |
+|           see purc.py script for more information         |
+-------------------------------------------------------------
+""" 
+
+usage = """
+
+Use this script to recluster the alleles/homeologs from a previous PURC run. 
+
+Usage: ./purc_recluster.py annotated_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2 abuncdance_skew
+Example: ./purc_recluster.py purc_run_3_annotated.fa recluster 0.997 0.995 0.99 0.997 1 4 1.9
+
+Note: 
+(1) clustID1-4: The similarity criterion for the first, second, third and forth USEARCH clustering
+(2) sizeThreshold1-2: The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
+(3) abuncdance_skew: An optional parameter to control chimera-killing; the default is 1.9
+
+"""
+
+citation = """
+This script relies heavily on USEARCH, and MUSCLE.
+If this script assisted with a publication, please cite the following papers
+(or updated citations, depending on the versions of USEARCH, etc., used).
+
+PURC: 
+-Awesome paper by carl and fay-wei. Awesome journal. Awesome page numbers.
+
+USEARCH/UCLUST: 
+-Edgar, R.C. 2010. Search and clustering orders of magnitude faster than BLAST. 
+Bioinformatics 26(19), 2460-2461.
+
+UCHIME:
+-Edgar, R.C., B.J. Haas, J.C. Clemente, C. Quince, R. Knight. 2011. 
+UCHIME improves sensitivity and speed of chimera detection, Bioinformatics 27(16), 2194-2200.
+
+MUSCLE:
+-Edgar, R.C. 2004. MUSCLE: Multiple sequence alignment with high accuracy and high throughput. 
+Nucleic Acids Research 32:1792-1797.
+"""
+
+
 import sys
 import os
 import re
@@ -8,20 +57,8 @@ import shutil
 import time
 import datetime
 from Bio import SeqIO
-
-
-usage = """
-
-Use this script to recluster the alleles/homeologs from a previous PURC run. 
-
-Usage: ./purc_recluster.py annoated_file output_folder clustID1 clustID2 clustID sizeThreshold
-Example: ./purc_recluster.py purc_run_3_annotated.fa Run2 0.997 0.995 0.99 4
-
-Note: 
-(1) clustID1-3 : The similarity criterion for the first, second and third USEARCH clustering
-(2) sizeThreshold : The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
-
-	"""
+from Bio import AlignIO
+from Bio.Align import AlignInfo
 
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
@@ -82,7 +119,7 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 		if split_by == "locus":
 			try:
 				LocusTaxonCountDict_unclustd[str(each_seq.id).split('|')[0], str(each_seq.id).split('|')[1]] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-				# The locus names are the same as each_folder
+				# The locus names are the same as locus_folder
 			except:
 				LocusTaxonCountDict_unclustd[str(each_seq.id).split('|')[0], str(each_seq.id).split('|')[1]] = 1		
 		
@@ -143,22 +180,29 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 		except:
 			log.write(outFile + ' is empty; perhaps sizeThreshold too high\n')
 
-	return outFile, ClusterToCentroid_dict
+	return outFile, ClusterToCentroid_dict, outClustFile
 
 # This function looks for PCR chimeras -- those formed within a single amplicon pool
-def deChimeIt(file, round, verbose_level=0):
-	"""Chimera remover. The abskew parameter is hardcoded currently (UCHIME default for it is 2.0)"""
+def deChimeIt(file, round, abskew=1.9, verbose_level=0):
+	"""Chimera remover"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew 1.9 -nonchimeras %s" % (Usearch, file, outFile)
+	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
+	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, file, abskew, outFile, outFile_uchime)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
 	if verbose_level in [1, 2]:
-		#print '\n**Uchime output on', file, '**\n'
-		#print err
 		log.write('\n**Uchime output on' + str(file) + '**\n')
 		log.write(str(err))
-	return outFile
+
+	# count number of chimera seq found by parsing 'outFile_uchime'
+	chimera_count = 0
+	uchime_out = open(outFile_uchime, 'rU')
+	for line in uchime_out:
+		line = line.strip('\n')
+		if line.split('\t')[-1] == 'Y':
+			chimera_count = chimera_count + 1
+	return outFile, chimera_count
 
 def sortIt_length(file, verbose_level=0):
 	"""Sorts clusters by seq length"""
@@ -192,91 +236,196 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 		log.write(str(err))
 	return outFile
 
-def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
+def align_and_consensus(inputfile, output_prefix):
+	output_alignment = output_prefix.split(';')[0] + '_aligned.fa'
+	output_consensus = output_prefix.split(';')[0] + '_consensus.fa'
+	muscle_cline = '%s -in %s -out %s' % (Muscle, inputfile, output_alignment)
+	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+
+	alignment = AlignIO.read(output_alignment, 'fasta')
+	summary_align = AlignInfo.SummaryInfo(alignment)
+	consensus = summary_align.gap_consensus(ambiguous='N',threshold=0.51)
+	output = open(output_consensus, 'w')
+	output.write('>' + output_prefix + '\n' + str(consensus).replace('-','') + '\n')
+	return
+
+def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
+	## Split sequences into separate files/folders for each locus ##
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
 	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus") 
 
-	## Split the locus files by barcode, and cluster each of the resulting single locus/barcode files
 	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
 	log.write('#Sequence clustering/dechimera-izing#\n')
 	all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
 		# folders) and they correspond to the counts for each.
 	LocusTaxonCountDict_clustd = {}
-
-	for each_folder in all_folders_loci: 
-		os.chdir(each_folder)
-		sys.stderr.write('\nWorking on: ' + each_folder + '...\n')
+	LocusTaxonCountDict_chimera = {}
+	
+	## Go through each locus ##
+	for locus_folder in all_folders_loci: # locus_folder = locus name
+		os.chdir(locus_folder)
+		sys.stderr.write('\nWorking on: ' + locus_folder + '...\n')
 		if verbose_level in [1,2]:
-			log.write('\nWorking on ' + str(each_folder) + ' ...\n')
-		# Open the file with annotated sequences for that locus.This is a little awkward, but the file name is the same as the folder name (which is "each_folder" currently)
-		# with the addition of ".fa". This is set as the file handle in SplitsBy, and if changed there, needs to be changed here too
-		AnnodDict = SeqIO.index(each_folder + ".fa", 'fasta') 
-		if len(AnnodDict) > 0: # ie, the file is not empty
-			taxonCounts = SplitBy(annotd_seqs_file = each_folder + ".fa", split_by = "taxon")					
-			all_folders_bcodes = taxonCounts.keys()
+			log.write('\nWorking on ' + str(locus_folder) + ' ...\n')
 
-			for bcode_folder in all_folders_bcodes:
+		if not os.stat(locus_folder + ".fa").st_size == 0: # ie, the file is not empty
+			## Split sequences into separate taxon folders ##
+			taxonCounts = SplitBy(annotd_seqs_file = locus_folder + ".fa", split_by = "taxon")					
+			all_folders_taxon = taxonCounts.keys()
+
+			for taxon_folder in all_folders_taxon:
 				if verbose_level in [1,2]:
-					log.write("Working on " + bcode_folder + '\n')
-				os.chdir(bcode_folder)
+					log.write("Working on " + taxon_folder + '\n')
+				os.chdir(taxon_folder)
 				
 				if verbose_level in [1,2]:
 					log.write("\tFirst clustering\n")
-					log.write("\nAttempting to sort: " + bcode_folder + ".fa\n")
+					log.write("\nAttempting to sort: " + taxon_folder + ".fa\n")
 
-				sorted_length = sortIt_length(file = bcode_folder + ".fa", verbose_level = verbose_level)
-				clustered1, previousClusterToCentroid_dict = clusterIt(file = sorted_length, previousClusterToCentroid_dict = '', clustID = clustID, round = 1, verbose_level = verbose_level)
+				sorted_length = sortIt_length(file = taxon_folder + ".fa", verbose_level = verbose_level)
+				clustered1, previousClusterToCentroid_dict, outClustFile1 = clusterIt(file = sorted_length, previousClusterToCentroid_dict = '', clustID = clustID, round = 1, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\tFirst chimera slaying expedition\n")
-				deChimered1 = deChimeIt(file = clustered1, round = 1, verbose_level = verbose_level)
+				deChimered1, chimera_count1 = deChimeIt(file = clustered1, round = 1, abskew = abskew, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond clustering\n")
 				sorted_size1 = sortIt_size(file = deChimered1, thresh = sizeThreshold, round = 1, verbose_level = verbose_level)
-				#sorted_length2 = sortIt_length(file = deChimered1, verbose_level = verbose_level)
-				clustered2, previousClusterToCentroid_dict = clusterIt(file = sorted_size1, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
+				clustered2, previousClusterToCentroid_dict, outClustFile2 = clusterIt(file = sorted_size1, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID2, round = 2, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tSecond chimera slaying expedition\n")
-				deChimered2 = deChimeIt(file = clustered2, round = 2, verbose_level = verbose_level)
+				deChimered2, chimera_count2 = deChimeIt(file = clustered2, round = 2, abskew = abskew, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird clustering\n")
 				sorted_size2 = sortIt_size(file = deChimered2, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				#sorted_length2 = sortIt_length(file = deChimered2, verbose_level = verbose_level)				
-				clustered3, previousClusterToCentroid_dict = clusterIt(file = sorted_size2, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
+				clustered3, previousClusterToCentroid_dict, outClustFile3 = clusterIt(file = sorted_size2, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 3, verbose_level = verbose_level)
 				
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered3 = deChimeIt(file = clustered3, round = 3, verbose_level = verbose_level)
+				deChimered3, chimera_count3 = deChimeIt(file = clustered3, round = 3, abskew = abskew, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\Forth clustering\n")
 				sorted_size3 = sortIt_size(file = deChimered3, thresh = sizeThreshold, round = 2, verbose_level = verbose_level)
-				#sorted_length2 = sortIt_length(file = deChimered3, verbose_level = verbose_level)				
-				clustered4, previousClusterToCentroid_dict = clusterIt(file = sorted_size3, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
+				clustered4, previousClusterToCentroid_dict, outClustFile4 = clusterIt(file = sorted_size3, previousClusterToCentroid_dict = previousClusterToCentroid_dict, clustID = clustID3, round = 4, verbose_level = verbose_level)
 
 				if verbose_level in [1,2]:
 					log.write("\tThird chimera slaying expedition\n")
-				deChimered4 = deChimeIt(file = clustered4, round = 4, verbose_level = verbose_level)
+				deChimered4, chimera_count4 = deChimeIt(file = clustered4, round = 4, abskew = abskew, verbose_level = verbose_level)
 
-				# Why are we sorting again? I guess this gives us the chance to remove clusters smaller than sizeThreshold2
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
 				try:
 					clustered_seq_file = parse_fasta(sorted_size4)
 					for each_seq in clustered_seq_file:
-						taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;
-						
+						#taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;					
 						try:
-							LocusTaxonCountDict_clustd[taxon_name, each_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-							# The locus names are the same as each_folder
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+							# The locus names are the same as locus_folder
 						except:
-							LocusTaxonCountDict_clustd[taxon_name, each_folder] = 1		
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] = 1		
 				except:
 					if verbose_level in [1,2]:
 						log.write(str(sorted_size4) + 'is an empty file\n')
+
+				### Collect all sequences from each cluster and re-consensus ###
+				# Go through the first clustering uc file
+				ClusterToSeq_dict1 = {}
+				for line in open(outClustFile1, 'rU'):	
+					line = line.strip('\n')
+					if line.startswith('H') or line.startswith('C'):
+						key = 'Cluster' + line.split('\t')[1]
+						seq = line.split('\t')[8]
+						try:
+							ClusterToSeq_dict1[key].append(seq)
+						except:
+							ClusterToSeq_dict1[key] = [seq]
+				# Go through the second clustering uc file
+				ClusterToSeq_dict2 = {}
+				for line in open(outClustFile2, 'rU'):	
+					line = line.strip('\n')
+					if line.startswith('H') or line.startswith('C'):
+						key = 'Cluster' + line.split('\t')[1]
+						seqs = ClusterToSeq_dict1[line.split('\t')[8].split(';')[0]] # use Cluster1 as key
+						for seq in seqs:
+							try:
+								ClusterToSeq_dict2[key].append(seq)
+							except:
+								ClusterToSeq_dict2[key] = [seq]
+				# Go through the third clustering uc file
+				ClusterToSeq_dict3 = {}
+				for line in open(outClustFile3, 'rU'):	
+					line = line.strip('\n')
+					if line.startswith('H') or line.startswith('C'):
+						key = 'Cluster' + line.split('\t')[1]
+						seqs = ClusterToSeq_dict2[line.split('\t')[8].split(';')[0]] # use Cluster1 as key
+						for seq in seqs:
+							try:
+								ClusterToSeq_dict3[key].append(seq)
+							except:
+								ClusterToSeq_dict3[key] = [seq]
+				# Go through the forth clustering uc file
+				ClusterToSeq_dict4 = {}
+				for line in open(outClustFile4, 'rU'):	
+					line = line.strip('\n')
+					if line.startswith('H') or line.startswith('C'):
+						key = 'Cluster' + line.split('\t')[1]
+						seqs = ClusterToSeq_dict3[line.split('\t')[8].split(';')[0]] # use Cluster1 as key
+						for seq in seqs:
+							try:
+								ClusterToSeq_dict4[key].append(seq)
+							except:
+								ClusterToSeq_dict4[key] = [seq]
+				
+				## Align and re-consensus of all constituent seq for each cluster ##
+				SeqDict = SeqIO.index(taxon_folder + ".fa", 'fasta')
+				for each_cluster in ClusterToSeq_dict4:
+					if len(ClusterToSeq_dict4[each_cluster]) >= int(sizeThreshold2):
+						cluster_seq_file = open(each_cluster, 'w')
+						for seq in ClusterToSeq_dict4[each_cluster]:
+							cluster_seq_file.write('>' + seq + '\n' + str(SeqDict[seq].seq) + '\n')
+						cluster_seq_file.close()
+						new_seq_name = taxon_folder + '_' + each_cluster + ';size=' + str(len(ClusterToSeq_dict4[each_cluster])) + ';'
+						align_and_consensus(each_cluster, new_seq_name)
+				
+				## Put all consensus seq into one file *_Cluster_Finalconsensus.fa ##
+				all_consensus_seq = open(taxon_folder + '_Cluster_Finalconsensus.fa', 'w')
+				files_to_add_reconsensus = glob.glob("*_consensus.fa")
+				for file in files_to_add_reconsensus: 
+					shutil.copyfileobj(open(file,'rb'), all_consensus_seq) #Add each file to the final output
+				all_consensus_seq.close()
+
+				## Do final clustering and chimera-killing ##
+				usearch_cline = "%s -sortbysize %s -fastaout %s" %(Usearch, taxon_folder + '_Cluster_Finalconsensus.fa', taxon_folder + '_Cluster_FinalconsensusSs.fa')
+				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+				
+				usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSs.fa', clustID4, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.uc')
+				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+
+				usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + '.fa', abskew, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime')
+				process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
+				
+				## Count number of chimera seq found by parsing 'outFile_uchime' ##
+				chimera_count5 = 0
+				uchime_out = open(taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.uchime', 'rU')
+				for line in uchime_out:
+					line = line.strip('\n')
+					if line.split('\t')[-1] == 'Y':
+						chimera_count5 = chimera_count5 + 1
+				LocusTaxonCountDict_chimera[taxon_folder, locus_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5]
+
+				## Rename sequences in the final fasta: add taxon name ##
+				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (taxon_folder, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh_renamed.fa')
+				process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+				(out, err) = process.communicate() #the stdout and stderr
 
 				os.chdir("..") # To get out of the current barcode folder and ready for the next one
 		os.chdir("..") # To get out of the current locus folder and ready for the next one
@@ -284,23 +433,29 @@ def ClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshol
 
 	## Put all the sequences together ##
 	sys.stderr.write('\rPutting all the sequences together......\n\n')
-	for each_folder in all_folders_loci: # Looping through each of the locus folders
-		outputfile_name = str(each_folder) + '_clustered.txt' # "each_folder" is also the name of the locus
-		outputfile = open(outputfile_name, 'w')
-		os.chdir(each_folder)
-		bcodesForThisLocus = glob.glob("*")
-		#print "glob thinks there are these barcode folders present: ", bcodesForThisLocus, "\n\n"
-		for bcode_folder in bcodesForThisLocus: # have to go into each barcode folder in each locus folder
-			if os.path.isdir(bcode_folder): # the glob might have found some files as well as folders	
-				os.chdir(bcode_folder)
-				files_to_add = glob.glob("*Ss4.fa")
-				for file in files_to_add: 
-					shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output		
+	for locus_folder in all_folders_loci: # Looping through each of the locus folders
+		#outputfile_name = str(locus_folder) + '_clustered.txt' # "locus_folder" is also the name of the locus
+		#outputfile = open(outputfile_name, 'w')
+		outputfile_name_reconsensus = str(locus_folder) + '_clustered_reconsensus.fa' 
+		outputfile_reconsensus = open(outputfile_name_reconsensus, 'w')
+
+		os.chdir(locus_folder)
+		taxonForThisLocus = glob.glob("*")
+		for taxon_folder in taxonForThisLocus: # have to go into each barcode folder in each locus folder
+			if os.path.isdir(taxon_folder): # the glob might have found some files as well as folders	
+				os.chdir(taxon_folder)
+				#files_to_add = glob.glob("*Ss4.fa")				
+				#for file in files_to_add: 
+				#	shutil.copyfileobj(open(file,'rb'), outputfile) #Add each file to the final output
+				files_to_add_reconsensus = glob.glob("*_Cluster_FinalconsensusSsC*_renamed.fa")
+				for file in files_to_add_reconsensus: 
+					shutil.copyfileobj(open(file,'rb'), outputfile_reconsensus) #Add each file to the final output
+
 				os.chdir('..')
 		os.chdir('..')
-		outputfile.close()
+		outputfile_reconsensus.close()
 
-	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd
+	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera
 
 def muscleIt(file, verbose_level=0):
 	"""Aligns the sequences using MUSCLE"""
@@ -317,7 +472,7 @@ def muscleIt(file, verbose_level=0):
 	return outFile
 
 ###### RUN ######	
-if len(sys.argv) < 7:
+if len(sys.argv) < 8:
 	sys.exit(usage)
 
 annotated_file = sys.argv[1]
@@ -325,12 +480,39 @@ masterFolder = sys.argv[2]
 clustID = float(sys.argv[3])
 clustID2 = float(sys.argv[4])
 clustID3 = float(sys.argv[5])
-sizeThreshold = int(sys.argv[6])
-sizeThreshold2 = int(sys.argv[7])
+clustID4 = float(sys.argv[6])
+sizeThreshold = int(sys.argv[7])
+sizeThreshold2 = int(sys.argv[8])
+
+try:
+	abskew = sys.argv[9]
+except:
+	abskew = str(1.9)
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
 Muscle = purc_location + '/' + 'Dependencies/muscle3.8.31'
+
+# Check if dependencies are in place
+sys.stderr.write('Checking dependencies...\n')
+if not os.path.isfile(Usearch):
+	sys.exit("Error: couldn't find the Usearch executable")
+if not os.path.isfile(Muscle):
+	sys.exit("Error: couldn't find the Muscle executable")
+
+# Check if muscle can be executed
+muscle_cline = '%s -version' % (Muscle)
+process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+(out, err) = process.communicate() #the stdout and stderr
+if not str(out).startswith('MUSCLE'):
+	sys.exit("Error: could not execute Muscle")
+
+# Check if Usearch can be executed
+usearch_cline = '%s -version' % (Usearch)
+process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+(out, err) = process.communicate() #the stdout and stderr
+if not str(out).startswith('usearch'):
+	sys.exit("Error: could not execute Usearch")
 
 ## Make output folder ##
 if os.path.exists(masterFolder): # overwrite existing folder
@@ -342,11 +524,11 @@ ts = time.time()
 time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
 log_file = 'purc_log_' + time_stamp + '.txt'
 log = open(log_file, 'w')
-
+log.write(logo + '\n')
 log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
 
 ## Recluster and redechimera ##
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd = ClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 taxon_list = []
 locus_list = []
@@ -356,9 +538,10 @@ for taxon_locus in LocusTaxonCountDict_clustd.keys():
 taxon_list = set(taxon_list)
 locus_list = set(locus_list)
 
-## Count ##
+## Producing a summary ##
 count_output = open('purc_cluster_counts.xls', 'w')
 
+# Output read count per taxon per locus
 log.write("\n**Raw reads per accession per locus**\n")
 count_output.write('\n**Raw reads per accession per locus**\n')
 count_output.write('\t' + '\t'.join(locus_list) + '\n')
@@ -376,6 +559,7 @@ for each_taxon in set(taxon_list):
 	count_output.write('\n')
 	log.write('\n')
 
+# Output clustered seq count
 count_output.write('\n**Final clustered sequences per accession per locus**\n')
 log.write('\n**Final clustered sequences per accession per locus**\n')
 count_output.write('\t' + '\t'.join(locus_list) + '\n')	
@@ -391,8 +575,9 @@ for each_taxon in set(taxon_list):
 			count_output.write('0\t') 
 			log.write('0\t') 
 	count_output.write('\n')		
-	log.write('\n')		
+	log.write('\n')
 
+# Output cluster count per locus 
 count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 log.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 
@@ -406,19 +591,19 @@ for each_locus in locus_list:
 		count_output.write(str(each_locus) + '\t0\n')			
 		log.write(str(each_locus) + '\t0\n')			
 
-## Clean-up the sequence names ##
-sys.stderr.write("Cleaning up the file names\n")
-fastas = glob.glob("*_clustered.txt")
-for file in fastas:
-	#log.write("Cleaning up the sequence names in " + str(file) + "\n")
-	fasta_cleaned = open(str(file).replace(".txt", "_renamed.fa"), 'w') # Make a new file with .fa instead of .txt
-	parsed = parse_fasta(file)
-	for seq in parsed:
-		seq.id = re.sub(r"seqs=\d*", r"", seq.id)
-		seq.id = re.sub(r"ccs.ee=[\d\.]*", r"", seq.id)
-		seq.id = seq.id.replace("centroid=", "").replace(";", "").replace("/","_")
-		fasta_cleaned.write(str('>' + seq.id + "\n" + seq.seq + "\n"))
-	fasta_cleaned.close()
+# Output chimeric seq count
+count_output.write('\n**Chimeric clusters/sequence count by locus**\n')	
+for each_locus in locus_list:
+	count_output.write(each_locus + '\n')		
+	#log.write(each_locus + '\t')		
+	for each_taxon in set(taxon_list):
+		try:
+			count_output.write('\t' + each_taxon + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][0]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][1]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][2]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][3]) + '\t' + str(LocusTaxonCountDict_chimera[each_taxon, each_locus][4]))		
+		except:
+			count_output.write('\t' + each_taxon)	
+		
+		count_output.write('\n')		
+	#log.write('\n')		
 
 ## Aligning the sequences ##
 fastas = glob.glob("*_renamed.fa")
@@ -427,7 +612,11 @@ for file in fastas:
 	log.write("Aligning " + file + "\n")
 	outFile = muscleIt(file)
 	
-
+fastas = glob.glob("*_clustered_reconsensus.fa")
+for file in fastas:
+	sys.stderr.write("Aligning " + file + "\n")
+	log.write("Aligning " + file + "\n")
+	outFile = muscleIt(file)
 
 
 

@@ -2,7 +2,6 @@ BC20	B	A_jap_8703
 BC26	B	A_jap_8740
 BC05	B	A_ten_4225
 BC07	B	A_ten_6138
-BC07	D	C_bul_7635
 BC04	C	C_dia_7994
 BC23	C	C_dic_8716
 BC09	C	C_fra_7106
@@ -29,7 +28,6 @@ BC23	B	C_pel_8733
 BC11	C	C_pro_7518
 BC08	C	C_ree_7038
 BC20	C	C_tenn_4513
-BC20	D	C_tenn_4513
 BC13	C	C_tenu_7648
 BC14	C	C_tenu_7798
 BC12	A	G_con_8053
