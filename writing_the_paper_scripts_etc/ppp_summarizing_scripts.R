@@ -13,8 +13,9 @@ library(ape)
 #library(gdata)
 #library(xlsx)
 
+# Remember the "/" as the end of these directory strings
 figureDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures/"
-mainDirectory <- "/Users/carlrothfels/Desktop/PURC_analysesForPaper/"
+mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/PURC_analysesForPaper/"
 
 
 #### Producing histograms of the number of expected errors per sequence
@@ -68,11 +69,14 @@ producePlot_ees <- function(){
 #### Producing the table of coverage/sequence (i.e., per cluster)
 
 ## Function to pull the allele count and coverages (size=) from an alignment
+# Need to have the directory with the results entered in the setwd line
 summarize_coverages <- function(directory, infile){
-  setwd(paste(as.character(mainDirectory), "6_runsWchimeraCountsOutput/", as.character(directory), sep = ""))
+  setwd(paste(as.character(mainDirectory), "7_addingFinalChimeraKill/", as.character(directory), sep = ""))
+  cat( "\nNow in ", directory)
   file <- read.dna(infile, format = "fasta")
   seqnames <- names(file)
-  coverages <- as.numeric(sub(".*size=(.*)", "\\1", seqnames))
+  #coverages <- as.numeric(sub(".*size=(.*)", "\\1", seqnames)) #This stopped working when I went to the _reconsensus.fa files. Maybe because those have an extra semicolon
+  coverages <- as.numeric(sub(".*size=(.*);", "\\1", seqnames))
   clusters <- length(coverages)
   coverageMean <- mean(coverages)
   coverageSD <- sd(coverages)
@@ -105,7 +109,8 @@ produceTable_coverages <- function(regimes, loci){
       directory <- paste(round, regime, sep="") # Getting directories in the form of, e.g., "R2A"
       for (locus in loci){
         ccount = ccount +1
-        values <- summarize_coverages(directory, paste(locus, "clustered_renamed.fa", sep="_"))
+        #values <- summarize_coverages(directory, paste(locus, "clustered_renamed.fa", sep="_"))
+        values <- summarize_coverages(directory, paste(locus, "clustered_reconsensus.fa", sep="_"))        
         cell <- paste(values[[1]], " (", round(values[[2]], digits=1), " +/- ", round(values[[3]], digits=1), ")", sep="")
         coverage_table[rcount,ccount] <- cell
       }
@@ -322,12 +327,14 @@ producePlot_ees()
 
 # To summarize the coverage values for all the runs
 regimes <- list("a", "c", "e") #"b", "d",
-stringentRegimes <- paste("Str_", regimes, sep="") # making list of e.g., "Str_a" regimes
-#regimes = c(regimes, stringentRegimes)
+stringentRegimes <- paste(regimes, "Str", sep="") # making list of e.g., "Str_a" regimes
+regimes = c(regimes, stringentRegimes)
 loci <- list("APP", "GAP", "IBR", "PGI")
-rounds <- list("R2") #, "R3", "R4" not done yet
+rounds <- list("R2", "R3", "R4") 
 
 table <- produceTable_coverages(regimes, loci)
+
+write.csv(table, file = paste(figureDirectory, "coverageTable.csv", sep=""))
 
 # To produce a plot of coverage histograms
 setwd(figureDirectory) # Will save the figure to this directory
