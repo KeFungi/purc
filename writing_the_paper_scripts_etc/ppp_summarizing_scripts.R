@@ -9,13 +9,12 @@
 # The regimes refer to the clustering settings that we're comparing (calling them a, b, c, etc):
 
 library(ape)
-#library(logspline)
-#library(gdata)
-#library(xlsx)
+library(seqinr)
 
 # Remember the "/" as the end of these directory strings
 figureDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures/"
-mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/PURC_analysesForPaper/"
+#mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/PURC_analysesForPaper/"
+mainDirectory <- "/Users/carlrothfels/Desktop/PURC_analysesForPaper/"
 
 
 #### Producing histograms of the number of expected errors per sequence
@@ -211,6 +210,35 @@ produceFigure_coveragesWcurve <- function(){ #regimes, loci, rounds
 } # End of function
 
 
+## This is a dirty little function that returns, for one analysis regime (R2e), the 
+# coverage counts for each allele output for each accession. I.e.: G_dry_8031 2 (12,32) etc for all four loci
+# The output will need manual editing before it's in a presentable form
+summarize_coverages_bytaxon <- function(directory, infile){
+  loci <- c("APP", "GAP", "IBR", "PGI")
+  for (locus in loci){
+    setwd("/Users/carlrothfels/Desktop/PURC_analysesForPaper/7_addingFinalChimeraKill/R2e/")
+    infile <- paste(locus, "_clustered_reconsensus.afa", sep="")  
+    
+    file <- read.dna(infile, format = "fasta")
+    #seqnames <- names(file) ## This isn't working anymore for some reason
+    seqnames <- dimnames(file)[[1]]
+    accessions <- sub("(.*)_Cluster.*;", "\\1", seqnames)
+    accessionlist <- unique(accessions)
+    coverages <- as.numeric(sub(".*size=(.*);", "\\1", seqnames))
+    setwd(figureDirectory) # Will save the output to the figure directory, set at the top
+    cat(locus, "\n", file = "R2e_perAccessionCoverage.txt", append = TRUE )
+    for (accession in sort(accessionlist)){
+      coverage <- coverages[which(accessions == accession)]
+      coverage <- paste(coverage, ",", sep="") # Sticking commas between the coverage counts. Will need to remove the last comma manually
+      cat(accession, "\t", length(coverage), "(", coverage, ")", "\n", file = "R2e_perAccessionCoverage.txt", append = TRUE )
+    }
+  }
+} # End of function
+
+
+
+
+
 ## workspace functions -- fooling around
 fooling_tryingToGetCurvesOnCountData <- function(){
   x <- 1:10
@@ -276,8 +304,10 @@ produceFigure_coverages <- function(regimes, loci, rounds){
 
 ### Functions for dealing with the chimeras
 
+#Tried to get better colours using http://colorbrewer2.org/# but gave up. could return to
 makeChimeraPlot <- function(){
-  chimeraDF <- read.csv("/Users/carlrothfels/Box Sync/R_Python_etal/git_repositories/ppp_repo/writing_the_paper/chimeraCounts.csv", header=FALSE, stringsAsFactors = FALSE)
+  chimeraDF <- read.csv("/Users/carlrothfels/Box Sync/R_Python_etal/git_repositories/ppp_repo/writing_the_paper_scripts_etc/chimeraCounts.csv", header=FALSE, stringsAsFactors = FALSE)
+  # THis csv file was made with the jupyter notebook: extractingChimeraCounts.ipynb
   chimeraDF$V7 = NULL # An extra column gets in somehow -- erasing it here
   colnames(chimeraDF) <- c("regime", "locus","CK1", "CK2", "CK3", "CK4") #"CK" for "chimera kill"
   regimes <- sort(unique(chimeraDF$regime))
@@ -288,11 +318,21 @@ makeChimeraPlot <- function(){
     data <- subset(chimeraDF, locus == thislocus)
     data <- data[-c(1,2)] # Getting rid of the first two columns
     data <- data.matrix(data) # Changing it from a dataframe to a matrix
-    barplot(data, beside=TRUE, ylim= c(0,200), main=thislocus)
+    barplot(data, beside=TRUE, ylim= c(0,200)) #, main=thislocus
+    if (thislocus == "APP"){
+      legend(.5,200, legend = regimes, fill = grey.colors(6), horiz = TRUE)
+    }
   }
   title(xlab = "Clustering Regime for Each Round of Chimera Detection",
         ylab = "Number of Chimeras Detected", outer = TRUE, line = 3)
 } # End of function
+
+setwd(figureDirectory)
+pdf("chimera_plots.pdf") #, h = 7, w = 8
+makeChimeraPlot()
+dev.off()
+
+citation(package = "base", lib.loc = NULL)
 
 oldmakeChimeraPlot <- function(){
   colours <- c("red", "blue", "orange", "red", "blue", "orange")
