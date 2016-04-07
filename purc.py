@@ -1344,6 +1344,9 @@ sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
 sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
 log.write('\t...done\n\n')
 
+if mode == 2:
+	sys.exit('Done')
+
 ## Iterative clustering and chimera-killing ##
 os.chdir(Output_folder) # move into the designated output folder
 LocusTaxonCountDict_clustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annoFileName, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
