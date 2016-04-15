@@ -147,7 +147,7 @@ def test_gz_multiblock():
 
 def test_suffix():
 	'''-y/--suffix parameter, combined with _F3'''
-	run("-c -e 0.12 -a 330201030313112312 -y _my_suffix --strip-f3", "suffix.fastq", "solid.csfasta", 'solid.qual')
+	run("-c -e 0.12 -a 1=330201030313112312 -y _my_suffix_{name} --strip-f3", "suffix.fastq", "solid.csfasta", 'solid.qual')
 
 def test_read_wildcard():
 	'''test wildcards in reads'''
@@ -194,11 +194,18 @@ def test_literal_N2_brace_notation():
 def test_anchored_front():
 	run("-g ^FRONTADAPT -N", "anchored.fasta", "anchored.fasta")
 
+def test_anchored_front_ellipsis_notation():
+	run("-a FRONTADAPT... -N", "anchored.fasta", "anchored.fasta")
+
 def test_anchored_back():
 	run("-a BACKADAPTER$ -N", "anchored-back.fasta", "anchored-back.fasta")
 
 def test_anchored_back_no_indels():
 	run("-a BACKADAPTER$ -N --no-indels", "anchored-back.fasta", "anchored-back.fasta")
+
+
+def test_no_indels():
+	run('-a TTAGACATAT -g GAGATTGCCA --no-indels', 'no_indels.fasta', 'no_indels.fasta')
 
 
 def test_issue_46():
@@ -223,6 +230,12 @@ def test_info_file_times():
 	with temporary_path("infotmp.txt") as infotmp:
 		run(["--info-file", infotmp, '--times', '2', '-a', 'adapt=GCCGAACTTCTTA', '-a', 'adapt2=GACTGCCTTAAGGACGT'], "illumina5.fastq", "illumina5.fastq")
 		assert files_equal(cutpath('illumina5.info.txt'), infotmp)
+
+
+def test_info_file_fasta():
+	with temporary_path("infotmp.txt") as infotmp:
+		# Just make sure that it runs
+		run(['--info-file', infotmp, '-a', 'TTAGACATAT', '-g', 'GAGATTGCCA', '--no-indels'], 'no_indels.fasta', 'no_indels.fasta')
 
 
 def test_named_adapter():

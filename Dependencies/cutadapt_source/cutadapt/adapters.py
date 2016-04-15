@@ -41,7 +41,49 @@ def parse_adapter(sequence, where):
 		return (sequence[1:], PREFIX)
 	if where == BACK and sequence.endswith('$'):
 		return (sequence[:-1], SUFFIX)
+	if where == BACK and sequence.endswith('...'):
+		return (sequence[:-3], PREFIX)
 	return (sequence, where)
+
+
+def parse_braces(sequence):
+	"""
+	Replace all occurrences of ``x{n}`` (where x is any character) with n
+	occurrences of x. Raise ValueError if the expression cannot be parsed.
+
+	>>> parse_braces('TGA{5}CT')
+	TGAAAAACT
+	"""
+	# Simple DFA with four states, encoded in prev
+	result = ''
+	prev = None
+	for s in re.split('(\{|\})', sequence):
+		if s == '':
+			continue
+		if prev is None:
+			if s == '{':
+				raise ValueError('"{" must be used after a character')
+			if s == '}':
+				raise ValueError('"}" cannot be used here')
+			prev = s
+			result += s
+		elif prev == '{':
+			prev = int(s)
+			if not 0 <= prev <= 10000:
+				raise ValueError('Value {} invalid'.format(prev))
+		elif isinstance(prev, int):
+			if s != '}':
+				raise ValueError('"}" expected')
+			result = result[:-1] + result[-1] * prev
+			prev = None
+		else:
+			if s != '{':
+				raise ValueError('Expected "{"')
+			prev = '{'
+	# Check if we are in a non-terminating state
+	if isinstance(prev, int) or prev == '{':
+		raise ValueError("Unterminated expression")
+	return result
 
 
 def gather_adapters(back, anywhere, front):
@@ -67,7 +109,7 @@ def gather_adapters(back, anywhere, front):
 				yield (name, seq, w)
 
 
-class AdapterMatch(object):
+class Match(object):
 	"""
 	TODO creating instances of this class is relatively slow and responsible for quite some runtime.
 	"""
@@ -88,7 +130,7 @@ class AdapterMatch(object):
 		self.length = self.astop - self.astart
 
 	def __str__(self):
-		return 'AdapterMatch(astart={0}, astop={1}, rstart={2}, rstop={3}, matches={4}, errors={5})'.format(
+		return 'Match(astart={0}, astop={1}, rstart={2}, rstop={3}, matches={4}, errors={5})'.format(
 			self.astart, self.astop, self.rstart, self.rstop, self.matches, self.errors)
 
 	def _guess_is_front(self):
@@ -126,6 +168,12 @@ class AdapterMatch(object):
 			return self.read.sequence[self.rstop:]
 
 
+def generate_adapter_name(_start=[1]):
+	name = str(_start[0])
+	_start[0] += 1
+	return name
+
+
 class Adapter(object):
 	"""
 	An adapter knows how to match itself to a read.
@@ -154,31 +202,18 @@ class Adapter(object):
 	name -- optional name of the adapter. If not provided, the name is set to a
 		unique number.
 	"""
-	automatic_name = 1
-
 	def __init__(self, sequence, where, max_error_rate, min_overlap=3,
 			read_wildcards=False, adapter_wildcards=True,
 			name=None, indels=True):
-		if name is None:
-			self.name = str(self.__class__.automatic_name)
-			self.__class__.automatic_name += 1
-			self.name_is_generated = True
-		else:
-			self.name = name
-			self.name_is_generated = False
-
-		self.sequence = self.parse_braces(sequence.upper().replace('U', 'T'))
+		self.debug = False
+		self.name = generate_adapter_name() if name is None else name
+		self.sequence = parse_braces(sequence.upper().replace('U', 'T'))
 		self.where = where
 		self.max_error_rate = max_error_rate
-		self.min_overlap = min_overlap
+		self.min_overlap = min(min_overlap, len(self.sequence))
 		self.indels = indels
-		assert where in (PREFIX, SUFFIX) or self.indels
-		self.wildcard_flags = 0
 		self.adapter_wildcards = adapter_wildcards and not set(self.sequence) <= set('ACGT')
-		if read_wildcards:
-			self.wildcard_flags |= align.ALLOW_WILDCARD_SEQ2
-		if self.adapter_wildcards:
-			self.wildcard_flags |= align.ALLOW_WILDCARD_SEQ1
+		self.read_wildcards = read_wildcards
 		# redirect trimmed() to appropriate function depending on adapter type
 		trimmers = {
 			FRONT: self._trimmed_front,
@@ -200,64 +235,36 @@ class Adapter(object):
 		self.adjacent_bases = { 'A': 0, 'C': 0, 'G': 0, 'T': 0, '': 0 }
 
 		self.aligner = align.Aligner(self.sequence, self.max_error_rate,
-			flags=self.where, degenerate=self.wildcard_flags,
-			min_overlap=self.min_overlap)
+			flags=self.where, wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
+		self.aligner.min_overlap = self.min_overlap
+		if not self.indels:
+			# TODO
+			# When indels are disallowed, an entirely different algorithm
+			# should be used.
+			self.aligner.indel_cost = 100000
 
 	def __repr__(self):
-		read_wildcards = bool(align.ALLOW_WILDCARD_SEQ2 & self.wildcard_flags)
 		return '<Adapter(name="{name}", sequence="{sequence}", where={where}, '\
 			'max_error_rate={max_error_rate}, min_overlap={min_overlap}, '\
 			'read_wildcards={read_wildcards}, '\
 			'adapter_wildcards={adapter_wildcards}, '\
-			'indels={indels})>'.format(
-				read_wildcards=read_wildcards,
-				**vars(self))
+			'indels={indels})>'.format(**vars(self))
 
-	@staticmethod
-	def parse_braces(sequence):
+	def enable_debug(self):
 		"""
-		Replace all occurrences of ``x{n}`` (where x is any character) with n
-		occurrences of x. Raise ValueError if the expression cannot be parsed.
-
-		>>> parse_braces('TGA{5}CT')
-		TGAAAAACT
+		Print out the dynamic programming matrix after matching a read to an
+		adapter.
 		"""
-		# Simple DFA with four states, encoded in prev
-		result = ''
-		prev = None
-		for s in re.split('(\{|\})', sequence):
-			if s == '':
-				continue
-			if prev is None:
-				if s == '{':
-					raise ValueError('"{" must be used after a character')
-				if s == '}':
-					raise ValueError('"}" cannot be used here')
-				prev = s
-				result += s
-			elif prev == '{':
-				prev = int(s)
-				if not 0 <= prev <= 10000:
-					raise ValueError('Value {} invalid'.format(prev))
-			elif isinstance(prev, int):
-				if s != '}':
-					raise ValueError('"}" expected')
-				result = result[:-1] + result[-1] * prev
-				prev = None
-			else:
-				if s != '{':
-					raise ValueError('Expected "{"')
-				prev = '{'
-		# Check if we are in a non-terminating state
-		if isinstance(prev, int) or prev == '{':
-			raise ValueError("Unterminated expression")
-		return result
+		self.debug = True
+		self.aligner.enable_debug()
 
 	def match_to(self, read):
 		"""
-		Try to match this adapter to the given read and return an AdapterMatch instance.
+		Attempt to match this adapter to the given read.
 
-		Return None if the minimum overlap length is not met or the error rate is too high.
+		Return an Match instance if a match was found;
+		return None if no match was found given the matching criteria (minimum
+		overlap length, maximum error rate).
 		"""
 		read_seq = read.sequence.upper()
 		pos = -1
@@ -270,29 +277,32 @@ class Adapter(object):
 			else:
 				pos = read_seq.find(self.sequence)
 		if pos >= 0:
-			match = AdapterMatch(
+			match = Match(
 				0, len(self.sequence), pos, pos + len(self.sequence),
 				len(self.sequence), 0, self._front_flag, self, read)
 		else:
 			# try approximate matching
-			if not self.indels:
-				assert self.where in (PREFIX, SUFFIX)
+			if not self.indels and self.where in (PREFIX, SUFFIX):
 				if self.where == PREFIX:
-					alignment = align.compare_prefixes(self.sequence, read_seq, self.wildcard_flags)
+					alignment = align.compare_prefixes(self.sequence, read_seq,
+						wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
 				else:
-					alignment = align.compare_suffixes(self.sequence, read_seq, self.wildcard_flags)
+					alignment = align.compare_suffixes(self.sequence, read_seq,
+						wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
 				astart, astop, rstart, rstop, matches, errors = alignment
 				if astop - astart >= self.min_overlap and errors / (astop - astart) <= self.max_error_rate:
-					match = AdapterMatch(*(alignment + (self._front_flag, self, read)))
+					match = Match(*(alignment + (self._front_flag, self, read)))
 				else:
 					match = None
 			else:
 				alignment = self.aligner.locate(read_seq)
+				if self.debug:
+					print(self.aligner.dpmatrix)  # pragma: no cover
 				if alignment is None:
 					match = None
 				else:
 					astart, astop, rstart, rstop, matches, errors = alignment
-					match = AdapterMatch(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
+					match = Match(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
 
 		if match is None:
 			return None
@@ -343,7 +353,7 @@ class ColorspaceAdapter(Adapter):
 		self.aligner.reference = self.sequence
 
 	def match_to(self, read):
-		"""Return AdapterMatch instance"""
+		"""Return Match instance"""
 		if self.where != PREFIX:
 			return super(ColorspaceAdapter, self).match_to(read)
 		# create artificial adapter that includes a first color that encodes the
@@ -352,15 +362,17 @@ class ColorspaceAdapter(Adapter):
 
 		pos = 0 if read.sequence.startswith(asequence) else -1
 		if pos >= 0:
-			match = AdapterMatch(
+			match = Match(
 				0, len(asequence), pos, pos + len(asequence),
 				len(asequence), 0, self._front_flag, self, read)
 		else:
 			# try approximate matching
 			self.aligner.reference = asequence
 			alignment = self.aligner.locate(read.sequence)
+			if self.debug:
+				print(self.aligner.dpmatrix)  # pragma: no cover
 			if alignment is not None:
-				match = AdapterMatch(*(alignment + (self._front_flag, self, read)))
+				match = Match(*(alignment + (self._front_flag, self, read)))
 			else:
 				match = None
 

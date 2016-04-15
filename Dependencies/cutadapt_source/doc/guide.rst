@@ -56,7 +56,7 @@ as expected::
 
     cutadapt -a AACCGGTT -o output.fastq.gz input.fastq.gz
 
-Note that the all of cutadapt's options that expect a file name support this.
+All of cutadapt's options that expect a file name support this.
 
 Files compressed with bzip2 (``.bz2``) or xz (``.xz``) are also supported, but
 only if the Python installation includes the proper modules. xz files require
@@ -78,7 +78,7 @@ can redirect it to a file like this::
 
     cutadapt -a AACCGGTT input.fastq > output.fastq 2> report.txt
 
-Anywhere cutadapt expects a file name, you can also write a dash (``-``) in
+Wherever cutadapt expects a file name, you can also write a dash (``-``) in
 order to specify that standard input or output should be used. For example::
 
     tail -n 4 input.fastq | cutadapt -a AACCGGTT - > output.fastq
@@ -102,8 +102,27 @@ you could use something like this::
     cutadapt -a AACCGGTT -o /dev/null input.fastq
 
 
-Trimming reads
-==============
+Read processing
+===============
+
+Cutadapt can do a lot more in addition to removing adapters. There are various
+command-line options that make it possible to modify and filter reads and to
+redirect them to various output files. Each read is processed in the following
+way:
+
+1. :ref:`Read modification options <modifying-reads>` are applied. This includes
+   :ref:`adapter removal <removing-adapters>`,
+   :ref:`quality trimming <quality-trimming>`, read name modifications etc.
+2. :ref:`Filtering options <filtering>` are applied, such as removal of too
+   short or untrimmed reads. Some of the filters also allow to redirect a read
+   to a separate output file.
+3. If the read has passed all the filters, it is written to the output file.
+
+
+.. _removing-adapters:
+
+Removing adapters
+=================
 
 Cutadapt supports trimming of multiple types of adapters:
 
@@ -170,8 +189,8 @@ starts with an adapter, like this::
 
     ADAPTERSOMETHING
 
-Then the sequence will be empty after trimming. Note that, by default, empty
-reads are not discarded and will appear in the output.
+Then the sequence will be empty after trimming. By default, empty reads are kept
+and will appear in the output.
 
 
 .. _five-prime-adapters:
@@ -246,11 +265,11 @@ Anchored 3' adapters
 --------------------
 
 It is also possible to anchor 3' adapters to the end of the read. This is
-rarely necessary, but if you have, for example, merged overlapping paired-end
-reads, then this may be useful. Add the ``$`` character to the end of an
+rarely necessary, but if you have merged, for example, overlapping paired-end
+reads, then it is useful. Add the ``$`` character to the end of an
 adapter sequence specified via ``-a`` in order to anchor the adapter to the
 end of the read, such as ``-a ADAPTER$``. The adapter will only be found if it
-as a *suffix* of the read, but errors are still allowed as for 5' adapters.
+is a *suffix* of the read, but errors are still allowed as for 5' adapters.
 You can disable insertions and deletions with ``--no-indels``.
 
 Anchored 3' adapters work as if you had reversed the sequence and used an
@@ -268,7 +287,7 @@ Using ``-a ADAPTER$`` will result in::
     MYSEQUENCE
     MYSEQUENCEADAPTERSOMETHINGELSE
 
-That is, only the middle read is trimmed at all.
+Only the middle read is trimmed at all.
 
 
 .. _anywhere-adapters:
@@ -289,7 +308,7 @@ partially). The decision which part of the read to remove is made as follows: If
 there is at least one base before the found adapter, then the adapter is
 considered to be a 3' adapter and the adapter itself and everything
 following it is removed. Otherwise, the adapter is considered to be a 5'
-adapter and it is removed from the read, but the sequence after it it remains.
+adapter and it is removed from the read, but the sequence after it remains.
 
 Here are some examples.
 
@@ -305,7 +324,7 @@ Read before trimming           Read after trimming Detected adapter type
 ``TERMYSEQUENCE``              ``MYSEQUENCE``      5' adapter
 ============================== =================== =====================
 
-The ``-b`` option does not work with colorspace data.
+The ``-b`` option cannot be used with colorspace data.
 
 
 .. _error-tolerance:
@@ -432,6 +451,14 @@ you use this feature. For poly-A trimming, for example, you would write::
     cutadapt -a "A{100}" -o output.fastq input.fastq
 
 
+.. _modifying-reads:
+
+Modifying reads
+===============
+
+This section describes in which ways reads can be modified other than adapter
+removal.
+
 .. _cut-bases:
 
 Removing a fixed number of bases
@@ -512,24 +539,131 @@ the trimming position. Therefore, the read is trimmed to the first four bases,
 which have quality values 42, 40, 26, 27.
 
 
+Modifying read names
+--------------------
+
+If you feel the need to modify the names of processed reads, some of the
+following options may be useful.
+
+Use ``-y`` or ``--suffix`` to append a text to read names. The given string can
+contain the placeholder ``{name}``, which will be replaced with the name of the
+adapter found in that read. For example, writing ::
+
+    cutadapt -a adapter1=ACGT -y ' we found {name}' input.fastq
+
+changes a read named ``read1`` to ``read1 we found adapter1`` if the adapter
+``ACGT`` was found. The options ``-x``/``--prefix`` work the same, but the text
+is added in front of the read name. For both options, spaces need to be
+specified explicitly, as in the above example. If no adapter was found in a
+read, the text ``no_adapter`` is inserted for ``{name}``.
+
+In order to remove a suffix of each read name, use ``--strip-suffix``.
+
+Some old 454 read files contain the length of the read in the name::
+
+    >read1 length=17
+    ACGTACGTACAAAAAAA
+
+If you want to update this to the correct length after trimming, use the option
+``--length-tag``. In this example, this would be ``--length-tag 'length='``.
+After trimming, the read would perhaps look like this::
+
+    >read1 length=10
+    ACGTACGTAC
+
+
+Read modification order
+-----------------------
+
+The read modifications described above are applied in the following order to
+each read. Steps not requested on the command-line are skipped.
+
+1. Unconditional base removal with ``--cut``
+2. Quality trimming (``-q``)
+3. Adapter trimming (``-a``, ``-b``, ``-g`` and uppercase versions)
+4. N-end trimming (``--trim-n``)
+5. Length tag modification (``--length-tag``)
+6. Read name suffixe removal (``--strip-suffix``)
+7. Addition of prefix and suffix to read name (``-x``/``--prefix`` and ``-y``/``--suffix``)
+8. Double-encode the sequence (only colorspace)
+9. Replace negative quality values with zero (zero capping, only colorspace)
+10. Trim primer base (only colorspace)
+
+The last three steps are colorspace-specific.
+
+
+.. _filtering:
+
+Filtering reads
+===============
+
+By default, all processed reads, no matter whether they were trimmed are not,
+are written to the output file specified by the ``-o`` option (or to standard
+output if ``-o`` was not provided). For paired-end reads, the second read in a
+pair is always written to the file specified by the ``-p`` option.
+
+The options described here make it possible to filter reads by either discarding
+them entirely or by redirecting them to other files. When redirecting reads,
+the basic rule is that *each read is written to at most one file*. You cannot
+write reads to more than one output file.
+
+In the following, the term "processed read" refers to a read to which all
+modifications have been applied (adapter removal, quality trimming etc.). A
+processed read can be identical to the input read if no modifications were done.
+
+
+``--minimum-length N`` or ``-m N``
+    Throw away processed reads shorter than *N* bases.
+
+``--too-short-output FILE``
+    Instead of throwing away the reads that are too short according to ``-m``,
+    write them to *FILE* (in FASTA/FASTQ format).
+
+``--maximum-length N`` or ``-M N``
+    Throw away processed reads longer than *N* bases.
+
+``--too-long-output FILE``
+    Instead of throwing away the reads that are too long (according to ``-M``),
+    write them to *FILE* (in FASTA/FASTQ format).
+
+``--untrimmed-output FILE``
+    Write all reads without adapters to *FILE* (in FASTA/FASTQ format) instead
+    of writing them to the regular output file.
+
+``--discard-trimmed``
+   Throw away reads in which an adapter was found.
+
+``--discard-untrimmed``
+   Throw away reads in which *no* adapter was found. This has the same effect as
+   specifying ``--untrimmed-output /dev/null``.
+
+The options ``--too-short-output`` and ``--too-long-output`` are applied first.
+This means, for example, that a read that is too long will never end up in the
+``--untrimmed-output`` file when ``--too-long-output`` was given, no matter
+whether it was trimmed or not.
+
+The options ``--untrimmed-output``, ``--discard-trimmed`` and ``-discard-untrimmed``
+are mutually exclusive.
+
+
 .. _paired-end:
 
 Trimming paired-end reads
 =========================
 
-Cutadapt supports trimming of paired-end reads. Starting with cutadapt 1.8,
-both reads in a pair can be trimmed at the same time. It is no longer necessary
-to run cutadapt twice.
+Cutadapt supports trimming of paired-end reads, trimming both reads in a pair
+at the same time.
 
 Assume the input is in ``reads.1.fastq`` and ``reads.2.fastq`` and that
 ``ADAPTER_FWD`` should be trimmed from the forward reads (first file)
 and ``ADAPTER_REV`` from the reverse reads (second file).
 
-The basic command-line is (``-p`` is the short form of ``--paired-output``)::
+The basic command-line is::
 
     cutadapt -a ADAPTER_FWD -A ADAPTER_REV -o out.1.fastq -p out.2.fastq reads.1.fastq reads.2.fastq
 
-The option ``-A`` is used here to specify an adapter sequence that cutadapt
+``-p`` is the short form of ``--paired-output``. The option ``-A`` is used here
+to specify an adapter sequence that cutadapt
 should remove from the second read in each pair. There are also the options
 ``-G``, ``-B``. All of them work just like their lowercase counterparts,
 except that the adapter is searched for in the second read in each paired-end
@@ -558,12 +692,13 @@ is mandatory you process both files at the same time to make sure that the
 output files are kept synchronized: If a read is removed from one of the files,
 cutadapt will ensure it is also removed from the other file.
 
+
 The following command-line options are applied to *both* reads:
 
-* ``-q``
-* ``--quality-base``
+* ``-q`` (along with ``--quality-base``)
 * ``--times`` applies to all the adapters given
 * ``--no-trim``
+* ``--trim-n``
 * ``--mask``
 * ``--length-tag``
 * ``--prefix``, ``--suffix``
@@ -571,18 +706,79 @@ The following command-line options are applied to *both* reads:
 * ``--colorspace``, ``--bwa``, ``-z``, ``--no-zero-cap``, ``--double-encode``,
   ``--trim-primer``
 
-In paired-end mode, the filtering options discard the read pair if *any*
-of the two reads fulfill the criteria. That is, ``--max-n`` discards the pair
-if one of the two reads has too many ``N`` bases; ``--discard-untrimmed``
-discards the pair if one of the reads does not contain an adapter;
-``--minimum-length`` discards the pair if one of the reads is too short;
-and ``--maximum-length`` discards the pair if one of the reads is too long.
-
 The following limitations still exist:
 
 * The ``--info-file``, ``--rest-file`` and ``--wildcard-file`` options write out
   information only from the first read.
 * Demultiplexing is not yet supported with paired-end data.
+
+
+
+.. _filtering-paired:
+
+Filtering paired-end reads
+--------------------------
+
+The :ref:`filtering options listed above <filtering>` can also be used when
+trimming paired-end data. Since there are two reads, however, the filtering
+criteria are checked for both reads. The question is what to do when a criterion
+applies to only one read and not the other.
+
+By default, the filtering options discard or redirect the read pair if *any*
+of the two reads fulfill the criteria. That is, ``--max-n`` discards the pair
+if one of the two reads has too many ``N`` bases; ``--discard-untrimmed``
+discards the pair if one of the reads does not contain an adapter;
+``--minimum-length`` discards the pair if one of the reads is too short;
+and ``--maximum-length`` discards the pair if one of the reads is too long.
+Note that the ``--discard-trimmed`` filter would also apply because it is also
+the case that at least one of the reads is *trimmed*!
+
+To require that filtering criteria must apply to *both* reads in order for a
+read pair to be considered "filtered", use the option ``--pair-filter=both``.
+
+To further complicate matters, cutadapt switches to a backwards compatibility
+mode ("legacy mode") when none of the uppercase modification options
+(``-A``/``-B``/``-G``/``-U``) are given. In that mode, filtering criteria are
+checked only for the *first* read. Cutadapt will also tell you at the top of
+the report whether legacy mode is active. Check that line if you get strange
+results!
+
+These are the paired-end specific filtering and output options:
+
+``--paired-output FILE`` or ``-p FILE``
+    Write the second read of each processed pair to *FILE* (in FASTA/FASTQ
+    format).
+
+``--untrimmed-paired-output FILE``
+    Used together with ``--untrimmed-output``. The second read in a pair is
+    written to this file when the processed pair was *not* trimmed.
+
+``--pair-filter=(any|both)``
+    Which of the reads in a paired-end read have to match the filtering
+    criterion in order for it to be filtered.
+
+Note that the option names can be abbreviated as long as it is clear which
+option is meant (unique prefix). For example, instead of ``--untrimmed-output``
+and ``--untrimmed-paired-output``, you can write ``--untrimmed-o`` and
+``--untrimmed-p``.
+
+
+Interleaved paired-end reads
+----------------------------
+
+Paired-end reads can be read from a single FASTQ file in which the entries for
+the first and second read from each pair alternate. The first read in each pair
+comes before the second. Enable this file format by adding the ``--interleaved``
+option to the command-line. For example::
+
+    cutadapt --interleaved -q 20 -a ACGT -A TGCA -o trimmed.fastq reads.fastq
+
+The output FASTQ file will also be written interleaved. Cutadapt will detect if
+the input file is not properly interleaved by checking whether read names match
+and whether the file contains an even number of entries.
+
+When ``--interleaved`` is used, legacy mode is disabled (that is,
+read-modification options such as ``-q`` always apply to both reads).
 
 
 Legacy paired-end read trimming
@@ -628,7 +824,7 @@ Finally, remove the temporary files::
 Please see the previous section for a much simpler way of trimming paired-end
 reads!
 
-In the legacy paired-end mode, the read-modifying options such as ``-q`` only
+In legacy paired-end mode, the read-modifying options such as ``-q`` only
 apply to the first file in each call to cutadapt (first ``reads.1.fastq``, then
 ``tmp.2.fastq`` in this example). Reads in the second file are not affected by those
 options, but by the filtering options: If a read in the first file is
@@ -717,7 +913,7 @@ Adapter names are also used in column 8 of :ref:`info files <info-file>`.
 Demultiplexing
 --------------
 
-Cutadapt supports demultiplexing: That is, reads can be written to different
+Cutadapt supports demultiplexing, which means that reads are written to different
 output files depending on which adapter was found in them. To use this, include
 the string ``{name}`` in the name of the output file and give each adapter a name.
 The path is then interpreted as a template and each trimmed read is written
@@ -727,7 +923,7 @@ file in which ``{name}`` is replaced with ``unknown``.
 
 .. note:
     Demultiplexing is currently only supported for single-end reads. Paired-end
-    support is planned for the next version.
+    support is planned for one of the next versions.
 
 Example::
 
@@ -932,71 +1128,6 @@ Cutadapt's output
 =================
 
 
-Where trimmed and untrimmed reads go
-------------------------------------
-
-By default, all processed reads, no matter whether they were trimmed are not,
-are written to the output file specified by the ``-o`` option (or to standard
-output if ``-o`` was not provided). For paired-end reads, the second read in a
-pair is always written to the file specified by the ``-p`` option.
-
-The options described in the following make it possible to redirect the reads
-to other files depending on their length and depending on whether they were
-trimmed or not. However, the basic rule here is that *each read is written to
-at most one file*. You cannot write reads to more than one output file.
-
-In the following, the term "processed read" refers to a read which has been
-quality trimmed (if ``-q`` has been used) and in which all found adapters have
-been removed. A processed read may be identical with the input read if no
-bases were quality-trimmed and no adapters were found.
-
-``--minimum-length N`` or ``-m N``
-    Use this to throw away processed reads shorter than *N* bases.
-
-``--too-short-output FILE``
-    Instead of throwing away the reads that are too short (according to ``-m``),
-    write them to *FILE* (in FASTA/FASTQ format).
-
-``--maximum-length N`` or ``-M N``
-    Use this to throw away processed reads longer than *N* bases.
-
-``--too-long-output FILE``
-    Instead of throwing away the reads that are too long (according to ``-M``),
-    write them to *FILE* (in FASTA/FASTQ format).
-
-``--untrimmed-output FILE``
-    Write all reads without adapters to *FILE* (in FASTA/FASTQ format) instead
-    of writing them to the regular output file.
-
-``--discard-trimmed``
-   Throw away reads in which an adapter was found.
-
-``--discard-untrimmed``
-   Throw away read in which no adapter was found. This has the same effect as
-   specifying ``--untrimmed-output /dev/null``.
-
-The options ``--too-short-output`` and ``--too-long-output`` are applied first.
-This means, for example, that a read that is too long will never end up in the
-``--untrimmed-output`` file when ``--too-long-output`` was given, no matter
-whether it was trimmed or not.
-
-The following options apply only when trimming paired-end data.
-
-``--paired-output FILE`` or ``-p FILE``
-    The second read in a pair is written to *FILE* (in FASTA/FASTQ format), but
-    only if also the first read was written to the first file.
-
-``--untrimmed-paired-output FILE``
-    When the first read in a pair was not trimmed, write the second read to
-    *FILE* instead of writing it to the regular output file. Use this together
-    with ``--untrimmed-output`` when trimming paired-end data.
-
-Note that the option names can be abbreviated as long as it is clear which
-option is meant (unique prefix). For example, instead of ``--untrimmed-output``
-and ``--untrimmed-paired-output``, you can write ``--untrimmed-o`` and
-``--untrimmed-p``.
-
-
 How to read the report
 ----------------------
 
@@ -1090,28 +1221,36 @@ of the input file (unless `--times` is used, see below). The fields are:
 6. Sequence of the read that was matched to the adapter
 7. Sequence of the read to the right of the adapter match (can be empty)
 8. Name of the found adapter.
+9. Quality values corresponding to sequence left of the adapter match (can be empty)
+10. Quality values corresponding to sequence matched to the adapter (can be empty)
+11. Quality values corresponding to sequence to the right of the adapter match (can be empty)
 
-The concatenation of the fields 5-7 yields the full read sequence. Column 8
-identifies the found adapter. `The section about named
-adapters <named-adapters>` describes how to give a name to an adapter. Adapters
-without a name are numbered starting from 1.
+The concatenation of the fields 5-7 yields the full read sequence. Column 8 identifies
+the found adapter. `The section about named adapters <named-adapters>` describes
+how to give a name to an adapter. Adapters without a name are numbered starting
+from 1. Fields 9-11 are empty if quality values are not available.
+Concatenating them yields the full sequence of quality values.
 
 If no adapter was found, the format is as follows:
 
-1.  Read name
-2.  The value -1
-3.  The read sequence
+1. Read name
+2. The value -1
+3. The read sequence
+4. Quality values
 
-When parsing that file, be aware that additional columns may be added in
+When parsing the file, be aware that additional columns may be added in
 the future. Note also that some fields can be empty, resulting in
 consecutive tabs within a line.
 
 If the ``--times`` option is used and greater than 1, each read can appear
 more than once in the info file. There will be one line for each found adapter,
 all with identical read names. Only for the first of those lines will the
-concatenation of columns 5-7 be identical to the original read sequence. For
-subsequent lines, the shown sequence are the ones that were used in subsequent
-rounds of adapter trimming, that is, they get successively shorter.
+concatenation of columns 5-7 be identical to the original read sequence (and
+accordingly for columns 9-11). For subsequent lines, the shown sequence are the
+ones that were used in subsequent rounds of adapter trimming, that is, they get
+successively shorter.
+
+Columns 9-11 have been added in cutadapt version 1.9.
 
 
 .. _algorithm:
@@ -1149,8 +1288,8 @@ of *x* mean? Is that good or bad? How should a threshold be chosen in order to
 avoid finding alignments with too many errors?
 
 For cutadapt, the adapter alignment algorithm uses *unit costs* instead.
-Mismatches, insertions and deletions are therefore counted as one error, which
-is easier to understand and always to specify a single parameter for the
+This means that mismatches, insertions and deletions are counted as one error, which
+is easier to understand and allows to specify a single parameter for the
 algorithm (the maximum error rate) in order to describe how many errors are
 acceptable.
 

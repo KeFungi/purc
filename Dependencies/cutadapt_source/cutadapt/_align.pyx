@@ -5,14 +5,6 @@ DEF START_WITHIN_SEQ2 = 2
 DEF STOP_WITHIN_SEQ1 = 4
 DEF STOP_WITHIN_SEQ2 = 8
 DEF SEMIGLOBAL = 15
-DEF ALLOW_WILDCARD_SEQ1 = 1
-DEF ALLOW_WILDCARD_SEQ2 = 2
-
-DEF INSERTION_COST = 1
-DEF DELETION_COST = 1
-DEF MATCH_COST = 0
-DEF MISMATCH_COST = 1
-DEF WILDCARD_CHAR = 'N'
 
 # structure for a DP matrix entry
 ctypedef struct _Entry:
@@ -89,6 +81,40 @@ cdef bytes ACGT_TABLE = _acgt_table()
 cdef bytes IUPAC_TABLE = _iupac_table()
 
 
+class DPMatrix:
+	"""
+	Representation of the dynamic-programming matrix.
+
+	This used only when debugging is enabled in the Aligner class since the
+	matrix is normally not stored in full.
+
+	Entries in the matrix may be None, in which case that value was not
+	computed.
+	"""
+	def __init__(self, reference, query):
+		m = len(reference)
+		n = len(query)
+		self._rows = [ [None] * (n+1) for _ in range(m + 1) ]
+		self.reference = reference
+		self.query = query
+
+	def set_entry(self, int i, int j, cost):
+		"""
+		Set an entry in the dynamic programming matrix.
+		"""
+		self._rows[i][j] = cost
+
+	def __str__(self):
+		"""
+		Return a representation of the matrix as a string.
+		"""
+		rows = ['     ' + ' '.join(c.rjust(2) for c in self.query)]
+		for c, row in zip(' ' + self.reference, self._rows):
+			r = c + ' ' + ' '.join('  ' if v is None else '{0:2d}'.format(v) for v in row)
+			rows.append(r)
+		return '\n'.join(rows)
+
+
 cdef class Aligner:
 	"""
 	TODO documentation still uses s1 (reference) and s2 (query).
@@ -145,7 +171,7 @@ cdef class Aligner:
 	It is always the case that at least one of start1 and start2 is zero.
 
 	IUPAC wildcard characters can be allowed in the reference and the query
-	by setting the appropriate bit in the 'degenerate' flag.
+	by setting the appropriate flags.
 
 	If neither flag is set, the full ASCII alphabet is used for comparison.
 	If any of the flags is set, all non-IUPAC characters in the sequences
@@ -155,20 +181,48 @@ cdef class Aligner:
 	cdef _Entry* column  # one column of the DP matrix
 	cdef double max_error_rate
 	cdef int flags
-	cdef int min_overlap
+	cdef int _insertion_cost
+	cdef int _deletion_cost
+	cdef int _min_overlap
 	cdef bint wildcard_ref
 	cdef bint wildcard_query
-	cdef bytes _reference
+	cdef bint debug
+	cdef object _dpmatrix
+	cdef bytes _reference  # TODO rename to translated_reference or so
+	cdef str str_reference
 
-	def __cinit__(self, str reference, double max_error_rate, int flags=SEMIGLOBAL, int degenerate=0, int min_overlap=1):
+	def __cinit__(self, str reference, double max_error_rate, int flags=SEMIGLOBAL, bint wildcard_ref=False, bint wildcard_query=False):
 		self.max_error_rate = max_error_rate
 		self.flags = flags
-		self.wildcard_ref = degenerate & ALLOW_WILDCARD_SEQ1
-		self.wildcard_query = degenerate & ALLOW_WILDCARD_SEQ2
+		self.wildcard_ref = wildcard_ref
+		self.wildcard_query = wildcard_query
+		self.str_reference = reference
 		self.reference = reference
-		if min_overlap < 1:
-			raise ValueError("minimum overlap must be at least 1")
-		self.min_overlap = min_overlap
+		self._min_overlap = 1
+		self.debug = False
+		self._dpmatrix = None
+		self._insertion_cost = 1
+		self._deletion_cost = 1
+
+	property min_overlap:
+		def __get__(self):
+			return self._min_overlap
+
+		def __set__(self, int value):
+			if value < 1:
+				raise ValueError('Minimum overlap must be at least 1')
+			self._min_overlap = value
+
+	property indel_cost:
+		"""
+		Matches cost 0, mismatches cost 1. Only insertion/deletion costs can be
+		changed.
+		"""
+		def __set__(self, value):
+			if value < 1:
+				raise ValueError('Insertion/deletion cost must be at leat 1')
+			self._insertion_cost = value
+			self._deletion_cost = value
 
 	property reference:
 		def __get__(self):
@@ -185,6 +239,22 @@ cdef class Aligner:
 				self._reference = self._reference.translate(IUPAC_TABLE)
 			elif self.wildcard_query:
 				self._reference = self._reference.translate(ACGT_TABLE)
+			self.str_reference = reference
+
+	property dpmatrix:
+		"""
+		The dynamic programming matrix as a DPMatrix object. This attribute is
+		usually None, unless debugging has been enabled with enable_debug().
+		"""
+		def __get__(self):
+			return self._dpmatrix
+
+	def enable_debug(self):
+		"""
+		Store the dynamic programming matrix while running the locate() method
+		and make it available in the .dpmatrix attribute.
+		"""
+		self.debug = True
 
 	def locate(self, str query):
 		"""
@@ -254,26 +324,30 @@ cdef class Aligner:
 		# TODO (later)
 		# fill out columns only until 'last'
 		if not start_in_ref and not start_in_query:
-			for i in range(0, m + 1):
+			for i in range(m + 1):
 				column[i].matches = 0
-				column[i].cost = max(i, min_n)
+				column[i].cost = max(i, min_n) * self._insertion_cost
 				column[i].origin = 0
 		elif start_in_ref and not start_in_query:
-			for i in range(0, m + 1):
+			for i in range(m + 1):
 				column[i].matches = 0
-				column[i].cost = min_n
+				column[i].cost = min_n * self._insertion_cost
 				column[i].origin = min(0, min_n - i)
 		elif not start_in_ref and start_in_query:
-			for i in range(0, m + 1):
+			for i in range(m + 1):
 				column[i].matches = 0
-				column[i].cost = i
+				column[i].cost = i * self._insertion_cost
 				column[i].origin = max(0, min_n - i)
 		else:
-			for i in range(0, m + 1):
+			for i in range(m + 1):
 				column[i].matches = 0
-				column[i].cost = min(i, min_n)
+				column[i].cost = min(i, min_n) * self._insertion_cost
 				column[i].origin = min_n - i
 
+		if self.debug:
+			self._dpmatrix = DPMatrix(self.str_reference, query)
+			for i in range(m + 1):
+				self._dpmatrix.set_entry(i, min_n, column[i].cost)
 		cdef _Match best
 		best.ref_stop = m
 		best.query_stop = n
@@ -282,7 +356,7 @@ cdef class Aligner:
 		best.matches = 0
 
 		# Ukkonen's trick: index of the last cell that is less than k.
-		cdef int last = k + 1
+		cdef int last = min(m, k + 1)
 		if start_in_ref:
 			last = m
 
@@ -294,77 +368,82 @@ cdef class Aligner:
 		cdef bint characters_equal
 		cdef _Entry tmp_entry
 
-		# iterate over columns
-		for j in range(min_n + 1, max_n + 1):
-			# remember first entry
-			tmp_entry = column[0]
+		with nogil:
+			# iterate over columns
+			for j in range(min_n + 1, max_n + 1):
+				# remember first entry
+				tmp_entry = column[0]
 
-			# fill in first entry in this column
-			if start_in_query:
-				column[0].origin = j
-			else:
-				column[0].cost = j * INSERTION_COST
-			for i in range(1, last + 1):
-				if compare_ascii:
-					characters_equal = (s1[i-1] == s2[j-1])
+				# fill in first entry in this column
+				if start_in_query:
+					column[0].origin = j
 				else:
-					characters_equal = (s1[i-1] & s2[j-1]) != 0
-				if characters_equal:
-					# Characters match: This cannot be an indel.
-					cost = tmp_entry.cost
-					origin = tmp_entry.origin
-					matches = tmp_entry.matches + 1
-				else:
-					# Characters do not match.
-					cost_diag = tmp_entry.cost + 1
-					cost_deletion = column[i].cost + DELETION_COST
-					cost_insertion = column[i-1].cost + INSERTION_COST
-
-					if cost_diag <= cost_deletion and cost_diag <= cost_insertion:
-						# MISMATCH
-						cost = cost_diag
-						origin = tmp_entry.origin
-						matches = tmp_entry.matches
-					elif cost_insertion <= cost_deletion:
-						# INSERTION
-						cost = cost_insertion
-						origin = column[i-1].origin
-						matches = column[i-1].matches
+					column[0].cost = j * self._insertion_cost
+				for i in range(1, last + 1):
+					if compare_ascii:
+						characters_equal = (s1[i-1] == s2[j-1])
 					else:
-						# DELETION
-						cost = cost_deletion
-						origin = column[i].origin
-						matches = column[i].matches
+						characters_equal = (s1[i-1] & s2[j-1]) != 0
+					if characters_equal:
+						# Characters match: This cannot be an indel.
+						cost = tmp_entry.cost
+						origin = tmp_entry.origin
+						matches = tmp_entry.matches + 1
+					else:
+						# Characters do not match.
+						cost_diag = tmp_entry.cost + 1
+						cost_deletion = column[i].cost + self._deletion_cost
+						cost_insertion = column[i-1].cost + self._insertion_cost
 
-				# remember current cell for next iteration
-				tmp_entry = column[i]
+						if cost_diag <= cost_deletion and cost_diag <= cost_insertion:
+							# MISMATCH
+							cost = cost_diag
+							origin = tmp_entry.origin
+							matches = tmp_entry.matches
+						elif cost_insertion <= cost_deletion:
+							# INSERTION
+							cost = cost_insertion
+							origin = column[i-1].origin
+							matches = column[i-1].matches
+						else:
+							# DELETION
+							cost = cost_deletion
+							origin = column[i].origin
+							matches = column[i].matches
 
-				column[i].cost = cost
-				column[i].origin = origin
-				column[i].matches = matches
-			while last >= 0 and column[last].cost > k:
-				last -= 1
-			# last can be -1 here, but will be incremented next.
-			# TODO if last is -1, can we stop searching?
-			if last < m:
-				last += 1
-			elif stop_in_query:
-				# Found a match. If requested, find best match in last row.
-				# length of the aligned part of the reference
-				length = m + min(column[m].origin, 0)
-				cost = column[m].cost
-				matches = column[m].matches
-				if length >= self.min_overlap and cost <= length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
-					# update
-					best.matches = matches
-					best.cost = cost
-					best.origin = column[m].origin
-					best.ref_stop = m
-					best.query_stop = j
-					if cost == 0 and matches == m:
-						# exact match, stop early
-						break
-			# column finished
+					# remember current cell for next iteration
+					tmp_entry = column[i]
+
+					column[i].cost = cost
+					column[i].origin = origin
+					column[i].matches = matches
+				if self.debug:
+					with gil:
+						for i in range(last + 1):
+							self._dpmatrix.set_entry(i, j, column[i].cost)
+				while last >= 0 and column[last].cost > k:
+					last -= 1
+				# last can be -1 here, but will be incremented next.
+				# TODO if last is -1, can we stop searching?
+				if last < m:
+					last += 1
+				elif stop_in_query:
+					# Found a match. If requested, find best match in last row.
+					# length of the aligned part of the reference
+					length = m + min(column[m].origin, 0)
+					cost = column[m].cost
+					matches = column[m].matches
+					if length >= self._min_overlap and cost <= length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
+						# update
+						best.matches = matches
+						best.cost = cost
+						best.origin = column[m].origin
+						best.ref_stop = m
+						best.query_stop = j
+						if cost == 0 and matches == m:
+							# exact match, stop early
+							break
+				# column finished
 
 		if max_n == n:
 			first_i = 0 if stop_in_ref else m
@@ -373,14 +452,13 @@ cdef class Aligner:
 				length = i + min(column[i].origin, 0)
 				cost = column[i].cost
 				matches = column[i].matches
-				if length >= self.min_overlap and cost <= length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
+				if length >= self._min_overlap and cost <= length * max_error_rate and (matches > best.matches or (matches == best.matches and cost < best.cost)):
 					# update best
 					best.matches = matches
 					best.cost = cost
 					best.origin = column[i].origin
 					best.ref_stop = i
 					best.query_stop = n
-
 		if best.cost == m + n:
 			# best.cost was initialized with this value.
 			# If it is unchanged, no alignment was found that has
@@ -402,16 +480,16 @@ cdef class Aligner:
 		PyMem_Free(self.column)
 
 
-def locate(str reference, str query, double max_error_rate, int flags=SEMIGLOBAL, int degenerate=0, int min_overlap=1):
-	aligner = Aligner(reference, max_error_rate, flags, degenerate, min_overlap)
+def locate(str reference, str query, double max_error_rate, int flags=SEMIGLOBAL, bint wildcard_ref=False, bint wildcard_query=False, int min_overlap=1):
+	aligner = Aligner(reference, max_error_rate, flags, wildcard_ref, wildcard_query)
+	aligner.min_overlap = min_overlap
 	return aligner.locate(query)
 
 
-def compare_prefixes(str ref, str query, int degenerate=0):
+def compare_prefixes(str ref, str query, bint wildcard_ref=False, bint wildcard_query=False):
 	"""
 	Find out whether one string is the prefix of the other one, allowing
-	IUPAC wildcards if the appropriate bit is set in the degenerate flag
-	parameter.
+	IUPAC wildcards in ref and/or query if the appropriate flag is set.
 
 	This is used to find an anchored 5' adapter (type 'FRONT') in the 'no indels' mode.
 	This is very simple as only the number of errors needs to be counted.
@@ -424,8 +502,6 @@ def compare_prefixes(str ref, str query, int degenerate=0):
 	cdef bytes ref_bytes = ref.encode('ascii')
 	cdef char* r_ptr
 	cdef char* q_ptr
-	cdef bint wildcard_ref = degenerate & ALLOW_WILDCARD_SEQ1
-	cdef bint wildcard_query = degenerate & ALLOW_WILDCARD_SEQ2
 	cdef int length = min(m, n)
 	cdef int i, matches = 0
 	cdef bint compare_ascii = False

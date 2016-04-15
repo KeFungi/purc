@@ -18,6 +18,27 @@ def run_paired(params, in1, in2, expected1, expected2):
 			assert files_equal(cutpath(expected2), p2)
 
 
+def run_interleaved(params, inpath, expected):
+	if type(params) is str:
+		params = params.split()
+	with temporary_path("temp-interleaved.fastq") as tmp:
+		params += ['--interleaved', '-o', tmp, datapath(inpath)]
+		assert cutadapt.main(params) is None
+		assert files_equal(cutpath(expected), tmp)
+
+
+def run_interleaved2(params, inpath, expected1, expected2):
+	if type(params) is str:
+		params = params.split()
+	with temporary_path("temp-paired.1.fastq") as p1:
+		with temporary_path("temp-paired.2.fastq") as p2:
+			params += ['--interleaved', '-o', p1, '-p', p2]
+		params += [datapath(inpath)]
+		assert cutadapt.main(params) is None
+		assert files_equal(cutpath(expected), p1)
+		assert files_equal(cutpath(expected), p2)
+
+
 def test_paired_separate():
 	'''test separate trimming of paired-end reads'''
 	run('-a TTAGACATAT', 'paired-separate.1.fastq', 'paired.1.fastq')
@@ -113,7 +134,7 @@ def test_unmatched_read_names():
 		with open(swapped, 'w') as f:
 			f.writelines(lines)
 		with redirect_stderr():
-			cutadapt.main('-a XX --paired-output out.fastq'.split() + [swapped, datapath('paired.2.fastq')])
+			cutadapt.main('-a XX -o out1.fastq --paired-output out2.fastq'.split() + [swapped, datapath('paired.2.fastq')])
 
 
 def test_legacy_minlength():
@@ -167,3 +188,85 @@ def test_paired_end_A_only():
 		in1='paired.1.fastq', in2='paired.2.fastq',
 		expected1='paired-onlyA.1.fastq', expected2='paired-onlyA.2.fastq'
 	)
+
+
+def test_discard_untrimmed():
+	# issue #146
+	# the first adapter is a sequence cut out from the first read
+	run_paired('-a CTCCAGCTTAGACATATC -A XXXXXXXX --discard-untrimmed',
+		in1='paired.1.fastq', in2='paired.2.fastq',
+		expected1='empty.fastq', expected2='empty.fastq'
+	)
+
+
+def test_discard_trimmed():
+	run_paired('-A C -O 1 --discard-trimmed',  # applies everywhere
+		in1='paired.1.fastq', in2='paired.2.fastq',
+		expected1='empty.fastq', expected2='empty.fastq'
+	)
+
+
+def test_interleaved():
+	'''single-pass interleaved paired-end with -q and -m'''
+	run_interleaved('-q 20 -a TTAGACATAT -A CAGTGGAGTA -m 14 -M 90',
+		inpath='interleaved.fastq', expected='interleaved.fastq'
+	)
+
+
+@raises(SystemExit)
+def test_interleaved_no_paired_output():
+	with temporary_path("temp-paired.1.fastq") as p1:
+		with temporary_path("temp-paired.2.fastq") as p2:
+			params = '-a XX --interleaved'.split()
+			with redirect_stderr():
+				params += [ '-o', p1, '-p1', p2, 'paired.1.fastq', 'paired.2.fastq']
+				cutadapt.main(params)
+
+"""
+def test_interleaved_input_paired_output():
+	'''single-pass interleaved paired-end with -q and -m, paired output'''
+	run_interleaved2('-q 20 -a TTAGACATAT -A CAGTGGAGTA -m 14 -M 90',
+		inpath='interleaved.fastq', expected1='pairedq1.fastq', expected2='pairedq2.fastq'
+	)
+"""
+
+
+def test_pair_filter():
+	run_paired('--pair-filter=both -a TTAGACATAT -A GGAGTA -m 14',
+		in1='paired.1.fastq', in2='paired.2.fastq',
+		expected1='paired-filterboth.1.fastq', expected2='paired-filterboth.2.fastq'
+	)
+
+
+def test_too_short_paired_output():
+	with temporary_path("temp-too-short.1.fastq") as p1:
+		with temporary_path("temp-too-short.2.fastq") as p2:
+			run_paired('-a TTAGACATAT -A CAGTGGAGTA -m 14 --too-short-output '
+				'{0} --too-short-paired-output {1}'.format(p1, p2),
+				in1='paired.1.fastq', in2='paired.2.fastq',
+				expected1='paired.1.fastq', expected2='paired.2.fastq'
+			)
+			assert files_equal(cutpath('paired-too-short.1.fastq'), p1)
+			assert files_equal(cutpath('paired-too-short.2.fastq'), p2)
+
+
+def test_too_long_output():
+	with temporary_path("temp-too-long.1.fastq") as p1:
+		with temporary_path("temp-too-long.2.fastq") as p2:
+			run_paired('-a TTAGACATAT -A CAGTGGAGTA -M 14 --too-long-output '
+				'{0} --too-long-paired-output {1}'.format(p1, p2),
+				in1='paired.1.fastq', in2='paired.2.fastq',
+				expected1='paired-too-short.1.fastq', expected2='paired-too-short.2.fastq'
+			)
+			assert files_equal(cutpath('paired.1.fastq'), p1)
+			assert files_equal(cutpath('paired.2.fastq'), p2)
+
+
+@raises(SystemExit)
+def test_too_short_output_paired_option_missing():
+	with temporary_path("temp-too-short.1.fastq") as p1:
+		run_paired('-a TTAGACATAT -A CAGTGGAGTA -m 14 --too-short-output '
+			'{0}'.format(p1),
+			in1='paired.1.fastq', in2='paired.2.fastq',
+			expected1='paired.1.fastq', expected2='paired.2.fastq'
+		)
