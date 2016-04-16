@@ -134,6 +134,7 @@ Adapter type                                        Command-line option
 :ref:`Anchored 3' adapter <anchored-3adapters>`     ``-a ADAPTER$``
 :ref:`Anchored 5' adapter <anchored-5adapters>`     ``-g ^ADAPTER``
 :ref:`5' or 3' (both possible) <anywhere-adapters>` ``-b ADAPTER``
+:ref:`Linked adapter <linked-adapters>`              ``-a ADAPTER1...ADAPTER2``
 =================================================== ===========================
 
 Here is an illustration of the allowed adapter locations relative to the read
@@ -290,6 +291,20 @@ Using ``-a ADAPTER$`` will result in::
 Only the middle read is trimmed at all.
 
 
+.. _linked-adapters:
+
+Linked adapters
+---------------
+
+This is a combination of a 5' and a 3' adapter. Use ``-a ADAPTER1...ADAPTER2``
+to search for a linked adapter. ADAPTER1 is interpreted as an anchored 5'
+adapter, which is searched for first. Only if ADAPTER1 is found will then
+ADAPTER2 be searched for,  which is a regular 3' adapter.
+
+This feature is experimental and will probably break when used in combination
+with some other options, such as ``--info-file``, ``--mask-adapter``.
+
+
 .. _anywhere-adapters:
 
 5' or 3' adapters
@@ -385,6 +400,32 @@ Insertions and deletions can be disallowed by using the option
 See also the :ref:`section on details of the alignment algorithm <algorithm>`.
 
 
+Multiple adapter occurrences within a single read
+-------------------------------------------------
+
+If a single read contains multiple copies of the same adapter, the basic rule is
+that the leftmost match is used for both 5' and 3' adapters. For example, when
+searching for a 3' adapter in ::
+
+    cccccADAPTERgggggADAPTERttttt
+
+the read will be trimmed to ::
+
+    ccccc
+
+When the adapter is a 5' adapter instead, the read will be trimmed to ::
+
+    gggggADAPTERttttt
+
+The above applies when both occurrences of the adapter are *exact* matches, and
+it also applies when both occurrences of the adapter are *inexact* matches (that
+is, it has at least one indel or mismatch). However, if one match is exact, but
+the other is inexact, then the exact match wins, even if it is not the leftmost
+one! The reason for this behavior is that cutadapt searches for exact matches
+first and, to improve performance, skips the error-tolerant matching step if an
+exact match was found.
+
+
 Reducing random matches
 -----------------------
 
@@ -393,8 +434,8 @@ short matches can occur by chance, leading to erroneously trimmed bases. For
 example, roughly 25% of all reads end with a base that is identical to the
 first base of the adapter. To reduce the number of falsely trimmed bases,
 the alignment algorithm requires that at least *three bases* match between
-adapter and read. The minimum overlap length can be changed with the
-``--overlap``(short: ``-O``) parameter. Shorter matches are simply
+adapter and read. The minimum overlap length can be changed with the parameter
+``--overlap`` (or its short version ``-O``). Shorter matches are simply
 ignored, and the bases are not trimmed.
 
 Requiring at least three bases to match is quite conservative. Even if no
@@ -405,7 +446,7 @@ overlap length of 3, only about 0.07 bases are lost per read.
 
 When choosing an appropriate minimum overlap length, take into account that
 true adapter matches are also lost when the overlap length is higher than
-1, reducing cutadapt's sensitivity.
+zero, reducing cutadapt's sensitivity.
 
 
 .. _wildcards:

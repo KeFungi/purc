@@ -7,7 +7,7 @@ need to be stored, and as a class with a __call__ method if there are parameters
 """
 from __future__ import print_function, division, absolute_import
 import re
-from cutadapt.qualtrim import quality_trim_index
+from cutadapt.qualtrim import quality_trim_index, nextseq_trim_index
 from cutadapt.compat import maketrans
 
 
@@ -32,12 +32,13 @@ class AdapterCutter(object):
 		self.rest_writer = rest_writer
 		self.action = action
 		self.with_adapters = 0
+		self.keep_match_info = self.info_file is not None
 
 	def _best_match(self, read):
 		"""
 		Find the best matching adapter in the given read.
 
-		Return either an Match instance or None if there are no matches.
+		Return either a Match instance or None if there are no matches.
 		"""
 		best = None
 		for adapter in self.adapters:
@@ -50,7 +51,7 @@ class AdapterCutter(object):
 				best = match
 		return best
 
-	def _write_info(self, read, matches):
+	def _write_info(self, read):
 		"""
 		Write to the info, wildcard and rest files.
 		# TODO
@@ -65,26 +66,9 @@ class AdapterCutter(object):
 			print(match.wildcards(), read.name, file=self.wildcard_file)
 
 		if self.info_file:
-			if match:
-				for m in matches:
-					seq = m.read.sequence
-					qualities = m.read.qualities
-					if qualities is None:
-						qualities = ''
-					print(
-						m.read.name,
-						m.errors,
-						m.rstart,
-						m.rstop,
-						seq[0:m.rstart],
-						seq[m.rstart:m.rstop],
-						seq[m.rstop:],
-						m.adapter.name,
-						qualities[0:m.rstart],
-						qualities[m.rstart:m.rstop],
-						qualities[m.rstop:],
-						sep='\t', file=self.info_file
-					)
+			if read.match_info:
+				for m in read.match_info:
+					print(*m, sep='\t', file=self.info_file)
 			else:
 				seq = read.sequence
 				qualities = read.qualities if read.qualities is not None else ''
@@ -112,18 +96,15 @@ class AdapterCutter(object):
 			if match is None:
 				# nothing found
 				break
-			assert match.length > 0
-			assert match.errors / match.length <= match.adapter.max_error_rate
-			assert match.length - match.errors > 0
 			matches.append(match)
 			trimmed_read = match.adapter.trimmed(match)
-
-		trimmed_read.match = matches[-1] if matches else None
-		self._write_info(trimmed_read, matches)
-
+		
 		if not matches:
+			trimmed_read.match = None
+			trimmed_read.match_info = None
+			self._write_info(trimmed_read)
 			return trimmed_read
-
+		
 		if __debug__:
 			assert len(trimmed_read) < len(read), "Trimmed read isn't shorter than original"
 
@@ -148,8 +129,12 @@ class AdapterCutter(object):
 			assert len(trimmed_read.sequence) == len(read)
 		elif self.action is None:
 			trimmed_read = read
-			trimmed_read.match = matches[-1]
-
+		
+		trimmed_read.match = matches[-1]
+		if self.keep_match_info:
+			trimmed_read.match_info = [match.get_info_record() for match in matches]
+		self._write_info(trimmed_read)
+		
 		self.with_adapters += 1
 		return trimmed_read
 
@@ -248,6 +233,18 @@ def PrimerTrimmer(read):
 	read = read[1:]
 	read.primer = ''
 	return read
+
+
+class NextseqQualityTrimmer(object):
+	def __init__(self, cutoff, base):
+		self.cutoff = cutoff
+		self.base = base
+		self.trimmed_bases = 0
+
+	def __call__(self, read):
+		stop = nextseq_trim_index(read, self.cutoff, self.base)
+		self.trimmed_bases += len(read) - stop
+		return read[:stop]
 
 
 class QualityTrimmer(object):
