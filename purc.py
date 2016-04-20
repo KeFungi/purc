@@ -57,9 +57,12 @@ import subprocess
 import shutil
 import time
 import datetime
-from Bio import SeqIO
-from Bio import AlignIO
-from Bio.Align import AlignInfo
+try:
+	from Bio import SeqIO
+	from Bio import AlignIO
+	from Bio.Align import AlignInfo
+except:
+	sys.exit('ERROR: could not import BioPython; please install BioPython first')
 
 def parse_fasta(infile):
 	"""Reads in a fasta, returns a list of biopython seq objects"""
