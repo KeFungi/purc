@@ -1060,7 +1060,8 @@ else:
 	num_threads = 1
 	barcode_databasefile = 'barcode_blastdb'
 	refseq_databasefile = 'refseq_blastdb'
-	Use_bundled_dependencies = True
+	#Use_bundled_dependencies = True
+	seq_name_toErase = ''
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt_source/bin/cutadapt'
 	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
@@ -1104,11 +1105,20 @@ else:
 					if not os.path.isfile(mapfile):
 						sys.exit("Error: couldn't find " + mapfile)
 			elif setting_name == 'Usearch':
-				Usearch = ppp_location + '/' + setting_argument
+				if setting_argument.startswith('Dependencies/'):
+					Usearch = ppp_location + '/' + setting_argument
+				else:
+					Usearch = setting_argument
 			elif setting_name == 'Cutadapt':
-				Cutadapt = ppp_location + '/' + setting_argument
+				if setting_argument.startswith('Dependencies/'):
+					Cutadapt = ppp_location + '/' + setting_argument
+				else:
+					Cutadapt = setting_argument
 			elif setting_name == 'Muscle':
-				Muscle = ppp_location + '/' + setting_argument
+				if setting_argument.startswith('Dependencies/'):
+					Muscle = ppp_location + '/' + setting_argument
+				else:
+					Muscle = setting_argument
 			elif setting_name == 'clustID1':
 				clustID = float(setting_argument)
 			elif setting_name == 'clustID2':
