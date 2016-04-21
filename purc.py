@@ -88,7 +88,7 @@ def count_seq_from_fasta(infile):
 
 def ReverseComplement(seq):
 	"""Returns reverse complement sequence, ignores gaps"""
-	seq = seq.replace(' ','') # Remove spaces
+	seq = seq.replace(' ','') 
 	seq = seq[::-1] # Reverse the sequence
 	basecomplement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N', 'R': 'Y', 'Y':'R', 'M': 'K', 'K': 'M', 'S': 'S', 'W': 'W', 'H': 'D', 'D': 'H', 'B': 'V', 'V': 'B'} # Make a dictionary for complement
 	letters = list(seq) 
@@ -476,7 +476,6 @@ def DeBarcoder_SWalign(SeqDict, barcode_seq_filename, Output_folder, Output_pref
 					Match = (each_bc.id, aln, mismatches, '-', each_bc.id)
 
 		if Match:
-			#print Match[3], Match[1].dump()
 			count_matches = count_matches + 1
 			out_stat.write(str(each_rec) + '\t' + Match[0] + '\t' + str(Match[1].q_end) + '\t' + str(Match[2]) + '\t' + Match[3] + '\n')
 			new_seq_name = Match[4] + '|' + str(each_rec) + '_recycled'
@@ -514,8 +513,6 @@ def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50):
 	process = subprocess.Popen(cutadapt_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()
 	if verbose_level in [1, 2]:
-		#print '**Primer-trimming results**\n'
-		#print err
 		log.write('**Primer-trimming results**\n')
 		log.write(str(err))
 
@@ -632,18 +629,16 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 	for each_rec in refseq_blast:
 		each_rec = each_rec.strip('\n')	
 		seq_name = each_rec.split('\t')[0] # The un-annotated sequence name, e.g., "BC02|m131213_174801_42153_c100618932550000001823119607181400_s1_p0/282/ccs;ee=7.2;"
-		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "locus=PGI|group=C|ref_taxon=C_diapA_BC17" ##Need to change this format
+		refseq_name = each_rec.split('\t')[1].replace(' ','').upper() # The best-hit reference sequence name, e.g., "locus=PGI/group=C/ref_taxon=C_diapA_BC17" ##Need to change this format
 
 		# Get the key for retrieving taxon_name in dictOfMapDicts[locus_name]
 		if Multiplex_perBC_flag:
 			try:
 				group_name = re.search('GROUP=(\w)/', refseq_name, re.IGNORECASE).group(1)
-				#group_name = refseq_name.split('_')[1][-1:].upper() # Trying to grab the last letter of the second "word", i.e., the "A" in "grA"		
 			except:
 				sys.exit('ERROR in parsing group annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')
 			try:
-				locus_name = re.search('LOCUS=(\w+)/', refseq_name, re.IGNORECASE).group(1)
-				#locus_name = refseq_name.split('_')[0].upper() # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
+				locus_name = re.search('LOCUS=(\w+)/', refseq_name, re.IGNORECASE).group(1) # The names are in the format "locus=X/group=XY/ref_taxon=XYZ"
 			except:
 				sys.exit('ERROR in parsing locus annotations in the reference sequences; should be in the format of >locus=X/group=XY/ref_taxon=XYZ')				
 			key = seq_name.split('|')[0] + '_' + group_name # Grabbing the barcode from the source seq, and the group from the matching ref seq.
@@ -703,13 +698,10 @@ def sortIt_length(file, verbose_level=0):
 	"""Sorts clusters by seq length"""
 	outFile = re.sub(r"(.*)\..*", r"\1_Sl.fa", file) # Make the outfile name by cutting off the extension of the infile name, and adding "_S1.fa"
 	usearch_cline = "%s -sortbylength %s -fastaout %s" %(Usearch, file, outFile)
-	#usearch_cline = "%s -sortbylength %s -output %s" %(Usearch, file, outFile) # Usearch 7 
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
 	if verbose_level == 2:
-		#print '\n**Usearch-sorting output on', file, '**\n'
-		#print err
 		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
 		log.write(str(err))
 	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
@@ -770,7 +762,6 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 			log.write(outFile + ' is empty; perhaps sizeThreshold too high\n')
 	return outFile, ClusterToCentroid_dict, outClustFile
 
-# This function looks for PCR chimeras -- those formed within a single amplicon pool
 def deChimeIt(file, round, abskew=1.9, verbose_level=0):
 	"""Chimera remover"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
@@ -808,7 +799,7 @@ def sortIt_size(file, thresh, round, verbose_level=0):
 
 def muscleIt(file, verbose_level=0):
 	"""Aligns the sequences using MUSCLE"""
-	outFile = re.sub(r"(.*)\..*", r"\1.afa", file) # The rs indicate "raw" and thus python's escaping gets turned off
+	outFile = re.sub(r"(.*)\..*", r"\1.afa", file) 
 	muscle_cline = '%s -in %s -out %s' % (Muscle, file, outFile)
 	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
@@ -1063,7 +1054,6 @@ else:
 	num_threads = 1
 	barcode_databasefile = 'barcode_blastdb'
 	refseq_databasefile = 'refseq_blastdb'
-	#Use_bundled_dependencies = True
 	seq_name_toErase = ''
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
 	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt_source/bin/cutadapt'
@@ -1257,7 +1247,10 @@ else:
 	if Recycle_bc:
 		log.write('''\tIf the BLAST-based approach doesn't find a barcode in a particular sequence
 		the sequence will be re-searched using a Smith-Waterman pairwise alignment approach\n''')
-		import swalign #so that users don't need to have this if not using this functionality
+		try:
+			import swalign 
+		except:
+			sys.exit("Error: could not import swalign; maybe turn off the recycle barcode option")
 	else: 
 		log.write("\tPrimer-searching will be done using the BLAST-based approach, only\n")
 	if Recycle_chimera:
@@ -1438,11 +1431,9 @@ for each_locus in locus_list:
 	file_name = Output_prefix + '_4_' + str(each_locus) + '_clustered_reconsensus.fa'
 	try: #I'm hoping that this will stop the program from crashing if a locus has no sequences
 		seq_no = len(parse_fasta(file_name))
-		#print '\t', each_locus, ':', seq_no
 		count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
 		log.write(str(each_locus) + '\t' + str(seq_no) + '\n')
 	except:
-		#print '\t', each_locus, ':', 0
 		count_output.write(str(each_locus) + '\t0\n')			
 		log.write(str(each_locus) + '\t0\n')			
 
@@ -1458,7 +1449,6 @@ for each_locus in locus_list:
 			count_output.write('\t' + each_taxon)	
 		
 		count_output.write('\n')		
-	#log.write('\n')		
 
 ## Aligning the sequences ##
 if Align == 1: # Aligning can be turned on/off in the configuration file
