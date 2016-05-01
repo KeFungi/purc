@@ -2,8 +2,8 @@
 
 ### Folder organization scheme:
 # For these functions to work, the data have to be organized in a particular way 
-# (organized [poorly] with the "mainDirectory" setting below). Within that mainDirectory the analyses are organized
-# by run, e.g., /R2a, /R2b, /R3a, etc.
+# (organized [poorly] with the "mainDirectory" setting below). Within that mainDirectory the analyses 
+# are organized by run and analysis regime, e.g., /R2a, /R2b, /R3a, etc.
 
 # The rounds refer to the three different pacbio submissions that we're analysing (R2, R3, and R4)
 # The regimes refer to the clustering settings that we're comparing (calling them a, b, c, etc):
@@ -11,14 +11,14 @@
 library(ape)
 library(seqinr)
 
-# Remember the "/" as the end of these directory strings
+# Setting a master directory for the data, and a directory to save the figures, etc., into
 figureDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/figures/"
-#mainDirectory <- "/Users/carlrothfels/Box Sync/Cystopteridaceae_projects/pacbio_lowcopy_cystopteridaceae/_aa_ppp_manuscript/PURC_analysesForPaper/"
 mainDirectory <- "/Users/carlrothfels/Desktop/PURC_analysesForPaper/"
 
 
+
 #### Producing histograms of the number of expected errors per sequence
-# Using the data from each run that are >600bp
+# Using the reads from each run that are >600bp
 # Example usearch command to get the ".._uncleaned.fa" files:
 # usearch7.0.1090 -fastq_filter R2_reads_of_insert.fastq -fastaout R2_uncleaned.fa -eeout -fastq_minlen 600
 
@@ -26,33 +26,29 @@ producePlot_ees <- function(){
   setwd(paste(as.character(mainDirectory), "rawdata/R2", sep = "")) # Moving into a subdirectory of the main directory
   R2 <- read.dna("R2_uncleaned.fa", format = "fasta")
   R2_labels <- names(R2)
-  length(R2_labels)
-  R2_ees <- as.numeric(sub(".*;ee=(.*);", "\\1", R2_labels))
+  length(R2_labels) # The number of reads, just in case you're interested
+  R2_ees <- as.numeric(sub(".*;ee=(.*);", "\\1", R2_labels)) # Extracting the ee values from the read names
   
   setwd(paste(as.character(mainDirectory), "rawdata/R3", sep = ""))
   R3 <- read.dna("R3_uncleaned.fa", format = "fasta")
   R3_labels <- names(R3)
-  length(R3_labels)
-  R3_ees <- as.numeric(sub(".*;ee=(.*);", "\\1", R3_labels))
+  length(R3_labels) 
+  R3_ees <- as.numeric(sub(".*;ee=(.*);", "\\1", R3_labels)) 
   
   setwd(paste(as.character(mainDirectory), "rawdata/R4", sep = ""))
   R4 <- read.dna("R4_uncleaned.fa", format = "fasta")
   R4_labels <- names(R4)
   length(R4_labels)
   R4_ees <- as.numeric(sub(".*;ee=(.*);", "\\1", R4_labels))
-  
-  # length(R4_ees[R4_ees < 8]) # The numbers generated here are close to, but 
-  # not the same as, those generated from the usearch quality control runs, somehow
-  
+    
   setwd(figureDirectory) # Will save the figure to this directory
   pdf("ee_plots_test1.pdf", h = 2, w = 8)
   breaks = seq(0, 600, by=0.2)
-  xlim=c(0,10)
+  xlim=c(0,10) # May have to change these depending on how dirty the data are, and how many reads there are
   ylim=c(0,6000)
   par(mfcol = c(1,3),  mar = c(2,2,2,0.5))
   
-  # The [R2_ees <10] bit is because it seems that uclust starts rounding the
-  # ee numbers starting at 10, so there is a small artifactual peak at 10.0
+  # The [R2_ees <10] bit cuts the histograms off at 10 ee -- few reads had more errors than that
   h2 <- hist(R2_ees[R2_ees < 10], breaks = breaks, plot=FALSE)
   h3 <- hist(R3_ees[R3_ees < 10], breaks = breaks, plot=FALSE)
   h4 <- hist(R4_ees[R4_ees < 10], breaks = breaks, plot=FALSE)
@@ -65,18 +61,18 @@ producePlot_ees <- function(){
 } # End of function
 
 
-#### Producing the table of coverage/sequence (i.e., per cluster)
 
-## Function to pull the allele count and coverages (size=) from an alignment
+#### Producing the table of coverage/sequence (i.e., per cluster) -- used to make Table 4, the "postclustering" table
+
+## Function to pull the allele counts and coverages (size=) from an alignment
 # Need to have the directory with the results entered in the setwd line
 summarize_coverages <- function(directory, infile){
   setwd(paste(as.character(mainDirectory), "7_addingFinalChimeraKill/", as.character(directory), sep = ""))
   cat( "\nNow in ", directory)
   file <- read.dna(infile, format = "fasta")
   seqnames <- names(file)
-  #coverages <- as.numeric(sub(".*size=(.*)", "\\1", seqnames)) #This stopped working when I went to the _reconsensus.fa files. Maybe because those have an extra semicolon
-  coverages <- as.numeric(sub(".*size=(.*);", "\\1", seqnames))
-  clusters <- length(coverages)
+  coverages <- as.numeric(sub(".*size=(.*);", "\\1", seqnames)) # Extracting the coverage ("size= XX") values from the read names
+  clusters <- length(coverages) # The number of clusters ("alleles")
   coverageMean <- mean(coverages)
   coverageSD <- sd(coverages)
   output <- list(clusters, coverageMean, coverageSD, coverages)
@@ -103,12 +99,10 @@ produceTable_coverages <- function(regimes, loci){
   for (regime in regimes){
     for (round in rounds){
       ccount = 0
-      rcount = rcount + 1 # What row are we in
-      #directory <- paste(round, "/", round, regime, sep="") # Getting directories in the form of, e.g., "R2/R2A"
+      rcount = rcount + 1 # What row we are in
       directory <- paste(round, regime, sep="") # Getting directories in the form of, e.g., "R2A"
       for (locus in loci){
         ccount = ccount +1
-        #values <- summarize_coverages(directory, paste(locus, "clustered_renamed.fa", sep="_"))
         values <- summarize_coverages(directory, paste(locus, "clustered_reconsensus.fa", sep="_"))        
         cell <- paste(values[[1]], " (", round(values[[2]], digits=1), " +/- ", round(values[[3]], digits=1), ")", sep="")
         coverage_table[rcount,ccount] <- cell
@@ -117,6 +111,7 @@ produceTable_coverages <- function(regimes, loci){
   }
   return(coverage_table)
 } # End of function
+
 
 
 #### Producing plots (histograms) of coverage values
