@@ -3,7 +3,7 @@
 Input_sequence_file		= 1-PacBio_seq.fasta	# Fasta file containing your sequencing reads
 in_Barcode_seq_file		= 2-barcodes.fasta		# Fasta file containing barcode names and sequences; the input for making blast database
 in_RefSeq_seq_file		= 3-ref_sequences.fasta	# Fasta file containing reference names and sequences; the input for making blast database
-Output_prefix			= purc_run				# The prefix for output files
+Output_prefix			= purc					# The prefix for output files
 Output_folder			= purc_out				# The folder in where all purc output will be saved
 Log_file				= log					# If left empty, default time-stamped log file name will be used
 
@@ -18,7 +18,8 @@ Reverse_primer			= GGAAGVACCTTYCCTACTGCCTG, TAGCTGCTCRAATTCCATKSAT, CTGATTAAMACA
 ***Setting up PURC run***
 [PPP_Configuration]
 Mode					= 0		# 0: Check concatemers and then full run
-								# 1: Full run
+								# 1: Skip concatemer-checking
+								# 2: End purc after annotation, without doing clustering
 Multiplex_per_barcode	= 1		# 0: Each barcode contains only one sample
 								# 1: Each barcode contains multiple samples
 Dual_barcode			= 0		# 0: Barcodes only on one primer
@@ -40,6 +41,9 @@ clustID4 				= 0.997 	# The similarity criterion for the FINAL clustering to rem
 sizeThreshold1			= 1 		# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 sizeThreshold2 			= 4			# The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)
 
+[Chimera-killing Parameters]
+abundance_skew			= 1.9		
+
 [Dependencies]
 Usearch 				= Dependencies/usearch8.1.1756							# The name of (or path to) Usearch executable; Here use the executables come together with PURC
 Cutadapt				= Dependencies/cutadapt_source/bin/cutadapt				# The name of (or path to) Cutadapt executable; Here use the executables come together with PURC
@@ -48,8 +52,7 @@ Muscle 					= Dependencies/muscle3.8.31								# The name of (or path to) Muscle
 [Miscellaneous]
 Threads					= 8						# The number of threads for running BLAST
 Verbose_level 			= 2						# 0: quiet, 1: noticeable (only uchime+cutadapt output), 2: annoying (all usearch+cutadapt+muscle output)
-Remove_intermediates	= 0						# 0: keep all the intermediate files, 1: remove intermediate files
+Remove_intermediates	= 1						# 0: keep all the intermediate files, 1: remove intermediate files
 Barcode_blastDB			= barcode_blastdb		# The name of the barcode blast database 
 RefSeq_blastDB			= refseq_blastdb		# The name of the reference sequence blast database 
-seq_name_toErase		= m131213_174801_42153_c100618932550000001823119607181400_			# Remove this from sequence names
-
+seq_name_toErase		= 						# Remove this from sequence names

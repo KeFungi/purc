@@ -11,63 +11,154 @@ from cutadapt.seqio import ColorspaceSequence, FastaReader
 
 # Constants for the find_best_alignment function.
 # The function is called with SEQ1 as the adapter, SEQ2 as the read.
+# TODO get rid of those constants, use strings instead
 BACK = align.START_WITHIN_SEQ2 | align.STOP_WITHIN_SEQ2 | align.STOP_WITHIN_SEQ1
 FRONT = align.START_WITHIN_SEQ2 | align.STOP_WITHIN_SEQ2 | align.START_WITHIN_SEQ1
 PREFIX = align.STOP_WITHIN_SEQ2
 SUFFIX = align.START_WITHIN_SEQ2
 ANYWHERE = align.SEMIGLOBAL
+LINKED = 'linked'
 
 
-def parse_adapter_name(seq):
+def parse_braces(sequence):
 	"""
-	Parse an adapter given as 'name=adapt' into 'name' and 'adapt'.
+	Replace all occurrences of ``x{n}`` (where x is any character) with n
+	occurrences of x. Raise ValueError if the expression cannot be parsed.
+
+	>>> parse_braces('TGA{5}CT')
+	TGAAAAACT
 	"""
-	fields = seq.split('=', 1)
-	if len(fields) > 1:
-		name, seq = fields
-		name = name.strip()
-	else:
-		name = None
-	seq = seq.strip()
-	return name, seq
+	# Simple DFA with four states, encoded in prev
+	result = ''
+	prev = None
+	for s in re.split('(\{|\})', sequence):
+		if s == '':
+			continue
+		if prev is None:
+			if s == '{':
+				raise ValueError('"{" must be used after a character')
+			if s == '}':
+				raise ValueError('"}" cannot be used here')
+			prev = s
+			result += s
+		elif prev == '{':
+			prev = int(s)
+			if not 0 <= prev <= 10000:
+				raise ValueError('Value {} invalid'.format(prev))
+		elif isinstance(prev, int):
+			if s != '}':
+				raise ValueError('"}" expected')
+			result = result[:-1] + result[-1] * prev
+			prev = None
+		else:
+			if s != '{':
+				raise ValueError('Expected "{"')
+			prev = '{'
+	# Check if we are in a non-terminating state
+	if isinstance(prev, int) or prev == '{':
+		raise ValueError("Unterminated expression")
+	return result
 
 
-def parse_adapter(sequence, where):
+class AdapterParser(object):
 	"""
-	Recognize anchored adapter sequences and return a corrected tuple
-	(sequence, where).
+	Factory for Adapter classes that all use the same parameters (error rate,
+	indels etc.). The given **kwargs will be passed to the Adapter constructors.
 	"""
-	if where == FRONT and sequence.startswith('^'):
-		return (sequence[1:], PREFIX)
-	if where == BACK and sequence.endswith('$'):
-		return (sequence[:-1], SUFFIX)
-	return (sequence, where)
+	def __init__(self, colorspace=False, **kwargs):
+		self.colorspace = colorspace
+		self.constructor_args = kwargs
+		self.adapter_class = ColorspaceAdapter if colorspace else Adapter
+
+	def parse(self, spec, name=None, cmdline_type='back'):
+		"""
+		Parse an adapter specification not using ``file:`` notation and return
+		an object of an appropriate Adapter class. The notation for anchored
+		5' and 3' adapters is supported. If the name parameter is None, then
+		an attempt is made to extract the name from the specification
+		(If spec is 'name=ADAPTER', name will be 'name'.)
+
+		cmdline_type -- describes which commandline parameter was used (``-a``
+		is 'back', ``-b`` is 'anywhere', and ``-g`` is 'front').
+		"""
+		if name is None:
+			name, spec = self._extract_name(spec)
+		sequence = spec
+		types = dict(back=BACK, front=FRONT, anywhere=ANYWHERE)
+		if cmdline_type not in types:
+			raise ValueError('cmdline_type cannot be {0!r}'.format(cmdline_type))
+		where = types[cmdline_type]
+		if where == FRONT and spec.startswith('^'):  # -g ^ADAPTER
+			sequence, where = spec[1:], PREFIX
+		elif where == BACK:
+			sequence1, middle, sequence2 = spec.partition('...')
+			if middle == '...':
+				if not sequence1:  # -a ...ADAPTER
+					sequence = sequence1[3:]
+				elif not sequence2:  # -a ADAPTER...
+					sequence, where = spec[:-3], PREFIX
+				else:  # -a ADAPTER1...ADAPTER2
+					if self.colorspace:
+						raise NotImplementedError('Using linked adapters in colorspace is not supported')
+					if sequence1.startswith('^') or sequence2.endswith('$'):
+						raise NotImplementedError('Using "$" or "^" when '
+							'specifying a linked adapter is not supported')
+					return LinkedAdapter(sequence1, sequence2, name=name,
+						**self.constructor_args)
+			elif spec.endswith('$'):   # -a ADAPTER$
+				sequence, where = spec[:-1], SUFFIX
+		if not sequence:
+			raise ValueError("The adapter sequence is empty.")
+
+		return self.adapter_class(sequence, where, name=name, **self.constructor_args)
+
+	def parse_with_file(self, spec, cmdline_type='back'):
+		"""
+		Parse an adapter specification and yield appropriate Adapter classes.
+		This works like the parse() function above, but also supports the
+		``file:`` notation for reading adapters from an external FASTA
+		file. Since a file can contain multiple adapters, this
+		function is a generator.
+		"""
+		if spec.startswith('file:'):
+			# read adapter sequences from a file
+			with FastaReader(spec[5:]) as fasta:
+				for record in fasta:
+					name = record.name.split(None, 1)[0]
+					yield self.parse(record.sequence, name, cmdline_type)
+		else:
+			name, spec = self._extract_name(spec)
+			yield self.parse(spec, name, cmdline_type)
+
+	def _extract_name(self, spec):
+		"""
+		Parse an adapter specification given as 'name=adapt' into 'name' and 'adapt'.
+		"""
+		fields = spec.split('=', 1)
+		if len(fields) > 1:
+			name, spec = fields
+			name = name.strip()
+		else:
+			name = None
+		spec = spec.strip()
+		return name, spec
+
+	def parse_multi(self, back, anywhere, front):
+		"""
+		Parse all three types of commandline options that can be used to
+		specify adapters. back, anywhere and front are lists of strings,
+		corresponding to the respective commandline types (-a, -b, -g).
+
+		Return a list of appropriate Adapter classes.
+		"""
+		adapters = []
+		for specs, cmdline_type in (back, 'back'), (anywhere, 'anywhere'), (front, 'front'):
+			for spec in specs:
+				adapters.extend(self.parse_with_file(spec, cmdline_type))
+		return adapters
 
 
-def gather_adapters(back, anywhere, front):
-	"""
-	Yield (name, seq, where) tuples from which Adapter instances can be built.
-	This generator deals with the notation for anchored 5'/3' adapters and also
-	understands the ``file:`` syntax for reading adapters from an external FASTA
-	file.
-	"""
-	for adapter_list, where in ((back, BACK), (anywhere, ANYWHERE), (front, FRONT)):
-		for seq in adapter_list:
-			if seq.startswith('file:'):
-				# read adapter sequences from a file
-				path = seq[5:]
-				with FastaReader(path) as fasta:
-					for record in fasta:
-						name = record.name.split(None, 1)[0]
-						seq, w = parse_adapter(record.sequence, where)
-						yield (name, seq, w)
-			else:
-				name, seq = parse_adapter_name(seq)
-				seq, w = parse_adapter(seq, where)
-				yield (name, seq, w)
-
-
-class AdapterMatch(object):
+class Match(object):
 	"""
 	TODO creating instances of this class is relatively slow and responsible for quite some runtime.
 	"""
@@ -86,9 +177,12 @@ class AdapterMatch(object):
 		# indels, this may be different from the number of characters
 		# in the read.
 		self.length = self.astop - self.astart
+		assert self.length > 0
+		assert self.errors / self.length <= self.adapter.max_error_rate
+		assert self.length - self.errors > 0
 
 	def __str__(self):
-		return 'AdapterMatch(astart={0}, astop={1}, rstart={2}, rstop={3}, matches={4}, errors={5})'.format(
+		return 'Match(astart={0}, astop={1}, rstart={2}, rstop={3}, matches={4}, errors={5})'.format(
 			self.astart, self.astop, self.rstart, self.rstop, self.matches, self.errors)
 
 	def _guess_is_front(self):
@@ -124,6 +218,35 @@ class AdapterMatch(object):
 			return self.read.sequence[:self.rstart]
 		else:
 			return self.read.sequence[self.rstop:]
+	
+	def get_info_record(self):
+		seq = self.read.sequence
+		qualities = self.read.qualities
+		info = (
+			self.read.name,
+			self.errors,
+			self.rstart,
+			self.rstop,
+			seq[0:self.rstart],
+			seq[self.rstart:self.rstop],
+			seq[self.rstop:],
+			self.adapter.name
+		)
+		if qualities:
+			info += (
+				qualities[0:self.rstart],
+				qualities[self.rstart:self.rstop],
+				qualities[self.rstop:]
+			)
+		else:
+			info += ('','','')
+		
+		return info
+
+def _generate_adapter_name(_start=[1]):
+	name = str(_start[0])
+	_start[0] += 1
+	return name
 
 
 class Adapter(object):
@@ -154,31 +277,18 @@ class Adapter(object):
 	name -- optional name of the adapter. If not provided, the name is set to a
 		unique number.
 	"""
-	automatic_name = 1
-
-	def __init__(self, sequence, where, max_error_rate, min_overlap=3,
-			read_wildcards=False, adapter_wildcards=True,
-			name=None, indels=True):
-		if name is None:
-			self.name = str(self.__class__.automatic_name)
-			self.__class__.automatic_name += 1
-			self.name_is_generated = True
-		else:
-			self.name = name
-			self.name_is_generated = False
-
-		self.sequence = self.parse_braces(sequence.upper().replace('U', 'T'))
+	def __init__(self, sequence, where, max_error_rate=0.1, min_overlap=3,
+			read_wildcards=False, adapter_wildcards=True, name=None, indels=True):
+		self.debug = False
+		self.name = _generate_adapter_name() if name is None else name
+		self.sequence = parse_braces(sequence.upper().replace('U', 'T'))
+		assert len(self.sequence) > 0
 		self.where = where
 		self.max_error_rate = max_error_rate
-		self.min_overlap = min_overlap
+		self.min_overlap = min(min_overlap, len(self.sequence))
 		self.indels = indels
-		assert where in (PREFIX, SUFFIX) or self.indels
-		self.wildcard_flags = 0
 		self.adapter_wildcards = adapter_wildcards and not set(self.sequence) <= set('ACGT')
-		if read_wildcards:
-			self.wildcard_flags |= align.ALLOW_WILDCARD_SEQ2
-		if self.adapter_wildcards:
-			self.wildcard_flags |= align.ALLOW_WILDCARD_SEQ1
+		self.read_wildcards = read_wildcards
 		# redirect trimmed() to appropriate function depending on adapter type
 		trimmers = {
 			FRONT: self._trimmed_front,
@@ -200,64 +310,36 @@ class Adapter(object):
 		self.adjacent_bases = { 'A': 0, 'C': 0, 'G': 0, 'T': 0, '': 0 }
 
 		self.aligner = align.Aligner(self.sequence, self.max_error_rate,
-			flags=self.where, degenerate=self.wildcard_flags,
-			min_overlap=self.min_overlap)
+			flags=self.where, wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
+		self.aligner.min_overlap = self.min_overlap
+		if not self.indels:
+			# TODO
+			# When indels are disallowed, an entirely different algorithm
+			# should be used.
+			self.aligner.indel_cost = 100000
 
 	def __repr__(self):
-		read_wildcards = bool(align.ALLOW_WILDCARD_SEQ2 & self.wildcard_flags)
 		return '<Adapter(name="{name}", sequence="{sequence}", where={where}, '\
 			'max_error_rate={max_error_rate}, min_overlap={min_overlap}, '\
 			'read_wildcards={read_wildcards}, '\
 			'adapter_wildcards={adapter_wildcards}, '\
-			'indels={indels})>'.format(
-				read_wildcards=read_wildcards,
-				**vars(self))
+			'indels={indels})>'.format(**vars(self))
 
-	@staticmethod
-	def parse_braces(sequence):
+	def enable_debug(self):
 		"""
-		Replace all occurrences of ``x{n}`` (where x is any character) with n
-		occurrences of x. Raise ValueError if the expression cannot be parsed.
-
-		>>> parse_braces('TGA{5}CT')
-		TGAAAAACT
+		Print out the dynamic programming matrix after matching a read to an
+		adapter.
 		"""
-		# Simple DFA with four states, encoded in prev
-		result = ''
-		prev = None
-		for s in re.split('(\{|\})', sequence):
-			if s == '':
-				continue
-			if prev is None:
-				if s == '{':
-					raise ValueError('"{" must be used after a character')
-				if s == '}':
-					raise ValueError('"}" cannot be used here')
-				prev = s
-				result += s
-			elif prev == '{':
-				prev = int(s)
-				if not 0 <= prev <= 10000:
-					raise ValueError('Value {} invalid'.format(prev))
-			elif isinstance(prev, int):
-				if s != '}':
-					raise ValueError('"}" expected')
-				result = result[:-1] + result[-1] * prev
-				prev = None
-			else:
-				if s != '{':
-					raise ValueError('Expected "{"')
-				prev = '{'
-		# Check if we are in a non-terminating state
-		if isinstance(prev, int) or prev == '{':
-			raise ValueError("Unterminated expression")
-		return result
+		self.debug = True
+		self.aligner.enable_debug()
 
 	def match_to(self, read):
 		"""
-		Try to match this adapter to the given read and return an AdapterMatch instance.
+		Attempt to match this adapter to the given read.
 
-		Return None if the minimum overlap length is not met or the error rate is too high.
+		Return an Match instance if a match was found;
+		return None if no match was found given the matching criteria (minimum
+		overlap length, maximum error rate).
 		"""
 		read_seq = read.sequence.upper()
 		pos = -1
@@ -270,29 +352,32 @@ class Adapter(object):
 			else:
 				pos = read_seq.find(self.sequence)
 		if pos >= 0:
-			match = AdapterMatch(
+			match = Match(
 				0, len(self.sequence), pos, pos + len(self.sequence),
 				len(self.sequence), 0, self._front_flag, self, read)
 		else:
 			# try approximate matching
-			if not self.indels:
-				assert self.where in (PREFIX, SUFFIX)
+			if not self.indels and self.where in (PREFIX, SUFFIX):
 				if self.where == PREFIX:
-					alignment = align.compare_prefixes(self.sequence, read_seq, self.wildcard_flags)
+					alignment = align.compare_prefixes(self.sequence, read_seq,
+						wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
 				else:
-					alignment = align.compare_suffixes(self.sequence, read_seq, self.wildcard_flags)
+					alignment = align.compare_suffixes(self.sequence, read_seq,
+						wildcard_ref=self.adapter_wildcards, wildcard_query=self.read_wildcards)
 				astart, astop, rstart, rstop, matches, errors = alignment
 				if astop - astart >= self.min_overlap and errors / (astop - astart) <= self.max_error_rate:
-					match = AdapterMatch(*(alignment + (self._front_flag, self, read)))
+					match = Match(*(alignment + (self._front_flag, self, read)))
 				else:
 					match = None
 			else:
 				alignment = self.aligner.locate(read_seq)
+				if self.debug:
+					print(self.aligner.dpmatrix)  # pragma: no cover
 				if alignment is None:
 					match = None
 				else:
 					astart, astop, rstart, rstop, matches, errors = alignment
-					match = AdapterMatch(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
+					match = Match(astart, astop, rstart, rstop, matches, errors, self._front_flag, self, read)
 
 		if match is None:
 			return None
@@ -343,7 +428,7 @@ class ColorspaceAdapter(Adapter):
 		self.aligner.reference = self.sequence
 
 	def match_to(self, read):
-		"""Return AdapterMatch instance"""
+		"""Return Match instance"""
 		if self.where != PREFIX:
 			return super(ColorspaceAdapter, self).match_to(read)
 		# create artificial adapter that includes a first color that encodes the
@@ -352,15 +437,17 @@ class ColorspaceAdapter(Adapter):
 
 		pos = 0 if read.sequence.startswith(asequence) else -1
 		if pos >= 0:
-			match = AdapterMatch(
+			match = Match(
 				0, len(asequence), pos, pos + len(asequence),
 				len(asequence), 0, self._front_flag, self, read)
 		else:
 			# try approximate matching
 			self.aligner.reference = asequence
 			alignment = self.aligner.locate(read.sequence)
+			if self.debug:
+				print(self.aligner.dpmatrix)  # pragma: no cover
 			if alignment is not None:
-				match = AdapterMatch(*(alignment + (self._front_flag, self, read)))
+				match = Match(*(alignment + (self._front_flag, self, read)))
 			else:
 				match = None
 
@@ -397,3 +484,86 @@ class ColorspaceAdapter(Adapter):
 
 	def __repr__(self):
 		return '<ColorspaceAdapter(sequence={0!r}, where={1})>'.format(self.sequence, self.where)
+
+
+class LinkedMatch(object):
+	"""
+	Represent a match of a LinkedAdapter.
+
+	TODO
+	It shouldn’t be necessary to have both a Match and a LinkedMatch class.
+	"""
+	def __init__(self, front_match, back_match, adapter):
+		self.front_match = front_match
+		self.back_match = back_match
+		self.adapter = adapter
+		assert front_match is not None
+
+
+class LinkedAdapter(object):
+	"""
+	"""
+	def __init__(self, front_sequence, back_sequence,
+			front_anchored=True, back_anchored=False, name=None, **kwargs):
+		"""
+		kwargs are passed on to individual Adapter constructors
+		"""
+		assert front_anchored and not back_anchored
+		where1 = PREFIX if front_anchored else FRONT
+		where2 = SUFFIX if back_anchored else BACK
+		self.front_anchored = front_anchored
+		self.back_anchored = back_anchored
+
+		# The following attributes are needed for the report
+		self.where = LINKED
+		self.name = _generate_adapter_name() if name is None else name
+		self.front_adapter = Adapter(front_sequence, where=where1, name=None, **kwargs)
+		self.back_adapter = Adapter(back_sequence, where=where2, name=None, **kwargs)
+
+	def enable_debug(self):
+		self.front_adapter.enable_debug()
+		self.back_adapter.enable_debug()
+
+	def match_to(self, read):
+		"""
+		Match the linked adapters against the given read. If the 'front' adapter
+		is not found, the 'back' adapter is not searched for.
+		"""
+		front_match = self.front_adapter.match_to(read)
+		if front_match is None:
+			return None
+		# TODO use match.trimmed() instead as soon as that does not update
+		# statistics anymore
+		read = read[front_match.rstop:]
+		back_match = self.back_adapter.match_to(read)
+		return LinkedMatch(front_match, back_match, self)
+
+	def trimmed(self, match):
+		front_trimmed = self.front_adapter.trimmed(match.front_match)
+		if match.back_match:
+			return self.back_adapter.trimmed(match.back_match)
+		else:
+			return front_trimmed
+
+	# Lots of forwarders (needed for the report). I’m sure this can be done
+	# in a better way.
+
+	@property
+	def lengths_front(self):
+		return self.front_adapter.lengths_front
+
+	@property
+	def lengths_back(self):
+		return self.back_adapter.lengths_back
+
+	@property
+	def errors_front(self):
+		return self.front_adapter.errors_front
+
+	@property
+	def errors_back(self):
+		return self.back_adapter.errors_back
+
+	@property
+	def adjacent_bases(self):
+		return self.back_adapter.adjacent_bases

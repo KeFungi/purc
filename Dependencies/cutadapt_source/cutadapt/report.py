@@ -8,9 +8,9 @@ import sys
 from collections import namedtuple
 from contextlib import contextmanager
 import textwrap
-from .adapters import BACK, FRONT, PREFIX, SUFFIX, ANYWHERE
-from .modifiers import QualityTrimmer
-from .filters import (TooShortReadFilter, TooLongReadFilter,
+from .adapters import BACK, FRONT, PREFIX, SUFFIX, ANYWHERE, LINKED
+from .modifiers import QualityTrimmer, AdapterCutter
+from .filters import (NoFilter, PairedNoFilter, TooShortReadFilter, TooLongReadFilter,
 	DiscardTrimmedFilter, DiscardUntrimmedFilter, Demultiplexer, NContentFilter)
 
 
@@ -38,39 +38,35 @@ class Statistics:
 		self.written = 0
 		self.written_bp = [0, 0]
 		self.too_many_n = None
+		# Collect statistics from writers/filters
 		for w in writers:
-			if isinstance(w, TooShortReadFilter):
-				self.too_short = w.filtered
-			elif isinstance(w, TooLongReadFilter):
-				self.too_long = w.filtered
-			elif isinstance(w, NContentFilter):
-				self.too_many_n = w.filtered
-			elif isinstance(w, (DiscardTrimmedFilter, DiscardUntrimmedFilter, Demultiplexer)):
+			if isinstance(w, (NoFilter, PairedNoFilter, Demultiplexer)) or isinstance(w.filter, (DiscardTrimmedFilter, DiscardUntrimmedFilter)):
 				self.written += w.written
 				if self.n > 0:
 					self.written_fraction = self.written / self.n
 				self.written_bp = self.written_bp[0] + w.written_bp[0], self.written_bp[1] + w.written_bp[1]
+			elif isinstance(w.filter, TooShortReadFilter):
+				self.too_short = w.filtered
+			elif isinstance(w.filter, TooLongReadFilter):
+				self.too_long = w.filtered
+			elif isinstance(w.filter, NContentFilter):
+				self.too_many_n = w.filtered
 		assert self.written is not None
 
+		# Collect statistics from modifiers
 		self.with_adapters = [0, 0]
-		for i in (0, 1):
-			for adapter in adapters_pair[i]:
-				self.with_adapters[i] += sum(adapter.lengths_front.values())
-				self.with_adapters[i] += sum(adapter.lengths_back.values())
+		self.quality_trimmed_bp = [0, 0]
+		self.did_quality_trimming = False
+		for i, modifiers_list in [(0, modifiers), (1, modifiers2)]:
+			for modifier in modifiers_list:
+				if isinstance(modifier, QualityTrimmer):
+					self.quality_trimmed_bp[i] = modifier.trimmed_bases
+					self.did_quality_trimming = True
+				elif isinstance(modifier, AdapterCutter):
+					self.with_adapters[i] += modifier.with_adapters
 		self.with_adapters_fraction = [ (v / self.n if self.n > 0 else 0) for v in self.with_adapters ]
-
-		self.quality_trimmed_bp = [qtrimmed(modifiers), qtrimmed(modifiers2)]
-
-		if self.quality_trimmed_bp[0] is not None or self.quality_trimmed_bp[1] is not None:
-			self.did_quality_trimming = True
-			if self.quality_trimmed_bp[0] is None:
-				self.quality_trimmed_bp[0] = 0
-			if self.quality_trimmed_bp[1] is None:
-				self.quality_trimmed_bp[1] = 0
-			self.quality_trimmed = sum(self.quality_trimmed_bp)
-			self.quality_trimmed_fraction = self.quality_trimmed / self.total_bp if self.total_bp > 0 else 0.0
-		else:
-			self.did_quality_trimming = False
+		self.quality_trimmed = sum(self.quality_trimmed_bp)
+		self.quality_trimmed_fraction = self.quality_trimmed / self.total_bp if self.total_bp > 0 else 0.0
 
 		self.total_written_bp = sum(self.written_bp)
 		self.total_written_bp_fraction = self.total_written_bp / self.total_bp if self.total_bp > 0 else 0.0
@@ -89,7 +85,8 @@ ADAPTER_TYPES = {
 	FRONT: "regular 5'",
 	PREFIX: "anchored 5'",
 	SUFFIX: "anchored 3'",
-	ANYWHERE: "variable 5'/3'"
+	ANYWHERE: "variable 5'/3'",
+	LINKED: "linked",
 }
 
 
@@ -158,17 +155,6 @@ def print_adjacent_bases(bases, sequence):
 		return True
 	print()
 	return False
-
-
-def qtrimmed(modifiers):
-	"""
-	Look for a QualityTrimmer in the given list of modifiers and return its
-	trimmed_bases attribute. If not found, return None.
-	"""
-	for m in modifiers:
-		if isinstance(m, QualityTrimmer):
-			return m.trimmed_bases
-	return None
 
 
 @contextmanager
@@ -244,21 +230,26 @@ def print_report(stats, adapters_pair):
 			total_back = sum(adapter.lengths_back.values())
 			total = total_front + total_back
 			where = adapter.where
-			assert where == ANYWHERE or (where in (BACK, SUFFIX) and total_front == 0) or (where in (FRONT, PREFIX) and total_back == 0)
+			assert where in (ANYWHERE, LINKED) or (where in (BACK, SUFFIX) and total_front == 0) or (where in (FRONT, PREFIX) and total_back == 0)
 
-			name = str(adapter.name)
-			if not adapter.name_is_generated:
-				name = "'{0}'".format(name)
 			if stats.paired:
 				extra = 'First read: ' if which_in_pair == 0 else 'Second read: '
 			else:
 				extra = ''
 
-			print("=" * 3, extra + "Adapter", name, "=" * 3)
+			print("=" * 3, extra + "Adapter", adapter.name, "=" * 3)
 			print()
-			print("Sequence: {0}; Type: {1}; Length: {2}; Trimmed: {3} times.".
-				format(adapter.sequence, ADAPTER_TYPES[adapter.where],
-					len(adapter.sequence), total))
+			if where == LINKED:
+				print("Sequence: {0}...{1}; Type: linked; Length: {2}+{3}; Trimmed: {4} times; Half matches: {5}".
+					format(adapter.front_adapter.sequence,
+						adapter.back_adapter.sequence,
+						len(adapter.front_adapter.sequence),
+						len(adapter.back_adapter.sequence),
+						total_front, total_back))
+			else:
+				print("Sequence: {0}; Type: {1}; Length: {2}; Trimmed: {3} times.".
+					format(adapter.sequence, ADAPTER_TYPES[adapter.where],
+						len(adapter.sequence), total))
 			if total == 0:
 				print()
 				continue
@@ -272,6 +263,20 @@ def print_report(stats, adapters_pair):
 				print()
 				print("Overview of removed sequences (3' or within)")
 				print_histogram(adapter.lengths_back, len(adapter), stats.n, adapter.max_error_rate, adapter.errors_back)
+			elif where == LINKED:
+				print()
+				print_error_ranges(len(adapter.front_adapter), adapter.front_adapter.max_error_rate)
+				print_error_ranges(len(adapter.back_adapter), adapter.back_adapter.max_error_rate)
+				print("Overview of removed sequences at 5' end")
+				print_histogram(adapter.front_adapter.lengths_front,
+					len(adapter.front_adapter), stats.n,
+					adapter.front_adapter.max_error_rate,
+					adapter.front_adapter.errors_front)
+				print()
+				print("Overview of removed sequences at 3' end")
+				print_histogram(adapter.back_adapter.lengths_back,
+					len(adapter.back_adapter), stats.n,
+					adapter.back_adapter.max_error_rate, adapter.back_adapter.errors_back)
 			elif where in (FRONT, PREFIX):
 				print()
 				print_error_ranges(len(adapter), adapter.max_error_rate)

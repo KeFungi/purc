@@ -2,8 +2,60 @@
 Changes
 =======
 
-v1.8.1
+in development
+--------------
+
+* Added a new “linked adapter” type. Use ``-a ADAPTER1...ADAPTER2` to search
+  for a linked adapter. ADAPTER1 is interpreted as an anchored 5' adapter, which
+  is searched for first. Only if ADAPTER1 is found will ADAPTER2 be searched
+  for, which is a regular 3' adapter.
+* Added experimental ``--nextseq-trim`` option for quality trimming of NextSeq
+  data. This is necessary because that machine cannot distinguish between G and
+  reaching the end of the fragment (it encodes G as 'black').
+* Even when trimming FASTQ files, output can now be FASTA (quality values are
+  simply dropped). Use the ``-o``/``-p`` options with a file name that ends in
+  ``.fasta`` or ``.fa`` to enable this.
+* Fix issue #167: Option ``--quiet`` was not entirely quiet.
+
+v1.9.1
+------
+
+* Added ``--pair-filter`` option, which :ref:`modifies how filtering criteria
+  apply to paired-end reads <filtering-paired>`
+* Add ``--too-short-paired-output`` and ``--too-long-paired-output`` options.
+* Fix incorrect number of trimmed bases reported if ``--times`` option was used.
+
+v1.9
 ----
+
+* Indels in the alignment can now be disabled for all adapter types (use
+  ``--no-indels``).
+* Quality values are now printed in the info file (``--info-file``)
+  when trimming FASTQ files. Fixes issue #144.
+* Options ``--prefix`` and ``--suffix``, which modify read names, now accept the
+  placeholder ``{name}`` and will replace it with the name of the found adapter.
+  Fixes issue #104.
+* Interleaved FASTQ files: With the ``--interleaved`` switch, paired-end reads
+  will be read from and written to interleaved FASTQ files. Fixes issue #113.
+* Anchored 5' adapters can now be specified by writing ``-a SEQUENCE...`` (note
+  the three dots).
+* Fix ``--discard-untrimmed`` and ``--discard-trimmed`` not working as expected
+  in paired-end mode (issue #146).
+* The minimum overlap is now automatically reduced to the adapter length if it
+  is too large. Fixes part of issue #153.
+* Thanks to Wolfgang Gerlach, there is now a Dockerfile.
+* The new ``--debug`` switch makes cutadapt print out the alignment matrix.
+
+v1.8.3
+------
+
+* Fix issue #95: Untrimmed reads were not listed in the info file.
+* Fix issue #138: pip install cutadapt did not work with new setuptools versions.
+* Fix issue #137: Avoid a hang when writing to two or more gzip-compressed
+  output files in Python 2.6.
+
+v1.8.1
+------
 
 * Fix #110: Counts for 'too short' and 'too long' reads were swapped in statistics.
 * Fix #115: Make ``--trim-n`` work also on second read for paired-end data.

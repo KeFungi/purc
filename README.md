@@ -35,11 +35,12 @@ If you get "permission denied" error, then try this first:
 #!shell
 chmod +x install_dependencies.sh
 ```
+If you get an error message like "ERROR: Cython is not installed", install/update [Cython](http://docs.cython.org/src/quickstart/install.html) and try again. 
 
 There are three other dependencies that you have to install yourself:
 
 * [Python](https://www.python.org) - Version 2.7 or later (within Python 2 -- we have not tested purc on Python 3, and it will probably not work).
-* [BioPython](http://biopython.org/wiki/Main_Page) - Version 1.6 or later. You need to have [Numpy](http://www.numpy.org) in place before installing BioPython. Please refer to BioPython [manual](http://biopython.org/DIST/docs/install/Installation.htmlall/Installation.html) for installation instruction.
+* [BioPython](http://biopython.org/wiki/Biopython) - Version 1.6 or later. You need to have [Numpy](http://www.numpy.org) in place before installing BioPython. Please refer to BioPython [manual](http://biopython.org/wiki/Download) for installation instruction.
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastDocs&DOC_TYPE=Download) - Version 2.2.30 or later. Place the executables in your PATH. Provided that you're are using a Mac, the easiest way is to download the .dmg file and follow the installer's instruction. To test if BLAST is installed correctly, open Terminal and type "blastn -h" (without quotation marks). If you see a bunch of stuff pooped out (i.e. "USAGE: ...blah blah blah"), then you are good to go. However, if you get "command not found" error, then BLAST is not installed correctly.  
 
 ### Step 2: get files ready ###

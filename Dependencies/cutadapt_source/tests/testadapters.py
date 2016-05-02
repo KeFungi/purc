@@ -3,18 +3,19 @@ from __future__ import print_function, division, absolute_import
 from nose.tools import raises, assert_raises
 
 from cutadapt.seqio import Sequence
-from cutadapt.adapters import Adapter, AdapterMatch, ColorspaceAdapter, FRONT, BACK
+from cutadapt.adapters import (Adapter, Match, ColorspaceAdapter, FRONT, BACK,
+	parse_braces, LinkedAdapter)
 
 def test_issue_52():
 	adapter = Adapter(
 		sequence='GAACTCCAGTCACNNNNN',
 		where=BACK,
-		max_error_rate=0.1,
+		max_error_rate=0.12,
 		min_overlap=5,
 		read_wildcards=False,
 		adapter_wildcards=True)
 	read = Sequence(name="abc", sequence='CCCCAGAACTACAGTCCCGGC')
-	am = AdapterMatch(astart=0, astop=17, rstart=5, rstop=21, matches=15, errors=2, front=None, adapter=adapter, read=read)
+	am = Match(astart=0, astop=17, rstart=5, rstop=21, matches=15, errors=2, front=None, adapter=adapter, read=read)
 	assert am.wildcards() == 'GGC'
 	"""
 	The result above should actually be 'CGGC' since the correct
@@ -69,24 +70,56 @@ def test_color():
 
 
 def test_parse_braces():
-	assert Adapter.parse_braces('') == ''
-	assert Adapter.parse_braces('A') == 'A'
-	assert Adapter.parse_braces('A{0}') == ''
-	assert Adapter.parse_braces('A{1}') == 'A'
-	assert Adapter.parse_braces('A{2}') == 'AA'
-	assert Adapter.parse_braces('A{2}C') == 'AAC'
-	assert Adapter.parse_braces('ACGTN{3}TGACCC') == 'ACGTNNNTGACCC'
-	assert Adapter.parse_braces('ACGTN{10}TGACCC') == 'ACGTNNNNNNNNNNTGACCC'
-	assert Adapter.parse_braces('ACGTN{3}TGA{4}CCC') == 'ACGTNNNTGAAAACCC'
-	assert Adapter.parse_braces('ACGTN{0}TGA{4}CCC') == 'ACGTTGAAAACCC'
+	assert parse_braces('') == ''
+	assert parse_braces('A') == 'A'
+	assert parse_braces('A{0}') == ''
+	assert parse_braces('A{1}') == 'A'
+	assert parse_braces('A{2}') == 'AA'
+	assert parse_braces('A{2}C') == 'AAC'
+	assert parse_braces('ACGTN{3}TGACCC') == 'ACGTNNNTGACCC'
+	assert parse_braces('ACGTN{10}TGACCC') == 'ACGTNNNNNNNNNNTGACCC'
+	assert parse_braces('ACGTN{3}TGA{4}CCC') == 'ACGTNNNTGAAAACCC'
+	assert parse_braces('ACGTN{0}TGA{4}CCC') == 'ACGTTGAAAACCC'
 
 
 def test_parse_braces_fail():
 	for expression in ['{', '}', '{}', '{5', '{1}', 'A{-7}', 'A{', 'A{1', 'N{7', 'AN{7', 'A{4{}',
 			'A{4}{3}', 'A{b}', 'A{6X}', 'A{X6}']:
-		print(expression)
-		try:
-			Adapter.parse_braces(expression)
-		except ValueError as e:
-			print(e)
-		assert_raises(ValueError, lambda: Adapter.parse_braces(expression))
+		assert_raises(ValueError, lambda: parse_braces(expression))
+
+
+def test_linked_adapter():
+	linked_adapter = LinkedAdapter('AAAA', 'TTTT')
+	sequence = Sequence(name='seq', sequence='AAAACCCCCTTTT')
+	match = linked_adapter.match_to(sequence)
+	trimmed = linked_adapter.trimmed(match)
+	assert trimmed.name == 'seq'
+	assert trimmed.sequence == 'CCCCC'
+
+
+def test_info_record():
+	adapter = Adapter(
+		sequence='GAACTCCAGTCACNNNNN',
+		where=BACK,
+		max_error_rate=0.12,
+		min_overlap=5,
+		read_wildcards=False,
+		adapter_wildcards=True,
+		name="Foo")
+	read = Sequence(name="abc", sequence='CCCCAGAACTACAGTCCCGGC')
+	am = Match(astart=0, astop=17, rstart=5, rstop=21, matches=15, errors=2, front=None, 
+		adapter=adapter, read=read)
+	print(am.get_info_record())
+	assert am.get_info_record() == (
+		"abc",
+		2,
+		5,
+		21,
+		'CCCCA',
+		'GAACTACAGTCCCGGC',
+		'',
+		'Foo',
+		'', 
+		'', 
+		''
+	)

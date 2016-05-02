@@ -85,7 +85,8 @@ class GzipReader:
 		"""
 		retcode = self.process.poll()
 		if retcode is not None and retcode != 0:
-			raise EOFError("gzip process returned non-zero exit code {0}. Is the input file truncated or corrupt?".format(retcode))
+			raise EOFError("gzip process returned non-zero exit code {0}. Is the "
+				"input file truncated or corrupt?".format(retcode))
 
 	def read(self, *args):
 		data = self.process.stdout.read(*args)
@@ -100,10 +101,11 @@ class GzipReader:
 	def __exit__(self, *exc_info):
 		self.close()
 
+
 def xopen(filename, mode='r'):
 	"""
 	Replacement for the "open" function that can also open files that have
-	been compressed with gzip or bzip2. If the filename is '-', standard
+	been compressed with gzip, bzip2 or xz. If the filename is '-', standard
 	output (mode 'w') or input (mode 'r') is returned. If the filename ends
 	with .gz, the file is opened with a pipe to the gzip program. If that
 	does not work, then gzip.open() is used (the gzip module is slower than
@@ -150,11 +152,13 @@ def xopen(filename, mode='r'):
 			return bz2.BZ2File(filename, mode)
 	elif filename.endswith('.xz'):
 		if lzma is None:
-			raise ImportError("Cannot open xz files: The lzma module is not available (use Python 3.3 or newer)")
+			raise ImportError("Cannot open xz files: The lzma module is not available "
+				"(use Python 3.3 or newer)")
 		return lzma.open(filename, mode)
 	elif filename.endswith('.gz'):
 		if PY3:
 			if 't' in mode:
+				# gzip.open in Python 3.2 does not support modes 'rt' and 'wt''
 				return io.TextIOWrapper(gzip.open(filename, mode[0]))
 			else:
 				if 'r' in mode:

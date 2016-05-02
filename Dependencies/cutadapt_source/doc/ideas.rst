@@ -21,26 +21,29 @@ improvements.
 - it seems the str.find optimization isn't very helpful. In any case, it should be
   moved into the Aligner class.
 - allow to remove not the adapter itself, but the sequence before or after it
-- convert adapter to lowercase
+- instead of trimming, convert adapter to lowercase
 - warn when given adapter sequence contains non-IUPAC characters
-- try multithreading again, this time use os.pipe()
-
+- try multithreading again, this time use os.pipe() or 0mq
+- extensible file type detection
+- the --times setting should be an attribute of Adapter
 
 Specifying adapters
 -------------------
 
-The idea is to deprecate the ``-b`` and ``-g`` parameters. Only ``-a`` is used
-with a special syntax for each adapter type. This makes it a bit easier to add
-new adapter types in the feature.
+The idea is to deprecate the ``-b``,  ``-g`` and ``-u`` parameters. Only ``-a``
+is used with a special syntax for each adapter type. This makes it a bit easier
+to add new adapter types in the feature.
 
 .. csv-table::
 
     back,``-a ADAPTER``,``-a ADAPTER`` or ``-a ...ADAPTER``
     suffix,``-a ADAPTER$``,``-a ...ADAPTER$``
     front,``-g ADAPTER``,``-a ADAPTER...``
-    prefix,``-g ^ADAPTER``,``-a ^ADAPTER...``
+    prefix,``-g ^ADAPTER``,``-a ^ADAPTER...`` (or have anchoring by default?)
     anywhere,``-b ADAPTER``, ``-a ...ADAPTER...`` ???
-    paired,(not implemented),``-a ADAPTER...ADAPTER`` or ``-a ^ADAPTER...ADAPTER``
+    unconditional,``-u +10``,``-a 10...`` (collides with colorspace)
+    unconditional,``-u -10``,``-a ...10$``
+    linked,(not implemented),``-a ADAPTER...ADAPTER`` or ``-a ^ADAPTER...ADAPTER``
 
 Or add only ``-a ADAPTER...`` as an alias for ``-g ^ADAPTER`` and
 ``-a ...ADAPTER`` as an alias for ``-a ADAPTER``.
@@ -55,16 +58,46 @@ picked. Default right now: Leftmost, even for -g adapters.
 
 Allow ``N{3,10}`` as in regular expressions (for a variable-length sequence).
 
+Use parentheses to specify the part of the sequence that should be kept:
+
+* ``-a (...)ADAPTER`` (default)
+* ``-a (...ADAPTER)`` (default)
+* ``-a ADAPTER(...)`` (default)
+* ``-a (ADAPTER...)`` (??)
+
+Or, specify the part that should be removed:
+
+    ``-a ...(ADAPTER...)``
+    ``-a ...ADAPTER(...)``
+    ``-a (ADAPTER)...``
+
+Model somehow all the flags that exist for semiglobal alignment. For start of the adapter:
+
+* Start of adapter can be degraded or not
+* Bases are allowed to be before adapter or not
+
+Not degraded and no bases before allowed = anchored.
+Degraded and bases before allowed = regular 5'
+
+By default, the 5' end should be anchored, the 3' end not.
+
+* ``-a ADAPTER...`` → not degraded, no bases before allowed
+* ``-a N*ADAPTER...`` → not degraded, bases before allowed
+* ``-a ADAPTER^...`` → degraded, no bases before allowed
+* ``-a N*ADAPTER^...`` → degraded, bases before allowed
+* ``-a ...ADAPTER`` → degraded, bases after allowed
+* ``-a ...ADAPTER$`` → not degraded, no bases after allowed
+
+
 
 Paired-end trimming
 -------------------
 
 * Could also use a paired-end read merger, then remove adapters with -a and -g
-* Should minimum overlap be sum of the two overlaps in each read?
 
+Available/used letters for command-line options
+-----------------------------------------------
 
-Single-letter command-line options
-----------------------------------
-
-Remaining characters: All uppercase letters except A, B, G, M, N, O
-Lowercase letters: i, j, k, l, s, w
+* Remaining characters: All uppercase letters except A, B, G, M, N, O, U
+* Lowercase letters: i, j, k, l, s, w
+* Planned/reserved: Q (paired-end quality trimming), j (multithreading)
