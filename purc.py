@@ -878,18 +878,6 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
-				## Count clustered seq and store in LocusTaxonCountDict_clustd as {('C_dia_5316', 'ApP'): 28} for example ##
-				try:
-					clustered_seq_file = parse_fasta(sorted_size4)
-					for each_seq in clustered_seq_file:
-						try:
-							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-						except:
-							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] = 1		
-				except:
-					if verbose_level in [1,2]:
-						log.write(str(sorted_size4) + 'is an empty file\n')
-
 				## Collect all sequences from each cluster and re-consensus ##
 				# Go through the first clustering uc file
 				ClusterToSeq_dict1 = {}
@@ -978,6 +966,18 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 					if line.split('\t')[-1] == 'Y':
 						chimera_count5 = chimera_count5 + 1
 				LocusTaxonCountDict_chimera[taxon_folder, locus_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5] # {('C_dia_5316', 'ApP'): [1,0,0,0,0]} for example
+
+				## Count clustered seq and store in LocusTaxonCountDict_clustd as {('C_dia_5316', 'ApP'): 28} for example ##
+				try:
+					clustered_seq_file = parse_fasta(taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa')
+					for each_seq in clustered_seq_file:
+						try:
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+						except:
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] = 1		
+				except:
+					if verbose_level in [1,2]:
+						log.write(str(all_consensus_seq) + 'is an empty file\n')
 
 				## Rename sequences in the final fasta: add taxon name ##
 				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (taxon_folder, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh_renamed.fa')
