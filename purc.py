@@ -1287,13 +1287,8 @@ if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 	shutil.rmtree(BLAST_DBs_folder)
 os.makedirs(BLAST_DBs_folder)
 os.chdir(BLAST_DBs_folder)
-<<<<<<< HEAD
 makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
 makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
-=======
-makeBlastDB('../' + refseq_filename, refseq_databasefile) # Make BLAST database for the reference sequences
-makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # And one of the barcodes
->>>>>>> ead3e0117b1a28abd09b0dceb340ca4f8fd11457
 os.chdir('..')
 
 ## Read sequences ##
