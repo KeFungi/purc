@@ -97,9 +97,17 @@ def ReverseComplement(seq):
 
 def makeBlastDB(inFileName, outDBname): 
 	"""Makes a blast database from the input file"""
-	makeblastdb_cmd = 'makeblastdb -in %s -dbtype nucl -parse_seqids -out %s' % (inFileName, outDBname)
+	
+	# remove any '-' in the sequence, so that BLAST won't freak out
+	seq_no_hyphen = open(inFileName + '.nohyphen.fasta', 'w')
+	for i in parse_fasta('../' + inFileName):
+		new_seq = str(i.seq).replace('-','')
+		seq_no_hyphen.write('>' + str(i.id) + '\n' + new_seq + '\n')
+	seq_no_hyphen.close()
+	makeblastdb_cmd = 'makeblastdb -in %s -dbtype nucl -parse_seqids -out %s' % (inFileName + '.nohyphen.fasta', outDBname)
 	process = subprocess.Popen(makeblastdb_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 	(out, err) = process.communicate()
+	#print err, out
 	if verbose_level in [1, 2]:
 		log.write(str(err))
 		log.write(str(out))
@@ -1272,8 +1280,8 @@ if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 	shutil.rmtree(BLAST_DBs_folder)
 os.makedirs(BLAST_DBs_folder)
 os.chdir(BLAST_DBs_folder)
-makeBlastDB('../' + refseq_filename, refseq_databasefile) # and one of the reference sequences
-makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # one of the barcodes
+makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
+makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
 os.chdir('..')
 
 ## Read sequences ##
@@ -1289,6 +1297,7 @@ os.makedirs(Output_folder)
 
 if mode == 0: # QC mode
 	## Check chimeras ##
+	log.write('\n#Concatemers Removal#\n')
 	sys.stderr.write('Checking for inter-locus chimeric sequences (concatemers)...\n')
 	if not Recycle_chimera:
 		chimeras_file = Output_prefix + '_0_chimeras.fa'
@@ -1303,6 +1312,7 @@ if mode == 0: # QC mode
 	raw_sequences = Output_folder + '/' + non_chimeras_file
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
 	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
+	log.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
 
 ## Remove barcodes ##
 log.write('\n#Barcode Removal#\n')
