@@ -4,8 +4,8 @@ logo = """
 -------------------------------------------------------------
 |                            PURC                           |
 |        Pipeline for Untangling Reticulate Complexes       |
-|                        version 1.0                        | 
-|            https://bitbucket.org/crothfels/ppp            |
+|                        version 1.01                       | 
+|           https://bitbucket.org/crothfels/purc            |
 |															|
 |                 Fay-Wei Li & Carl J Rothfels              |
 -------------------------------------------------------------
@@ -26,7 +26,9 @@ If this script assisted with a publication, please cite the following papers
 (or updated citations, depending on the versions of USEARCH, etc., used).
 
 PURC: 
--Awesome paper by carl and fay-wei. Awesome journal. Awesome page numbers.
+-Rothfels, C.J., K.M. Pryer, and F-W. Li. 2016. Next-generation polyploid 
+phylogenetics: rapid resolution of hybrid polyploid complexes using PacBio 
+single-molecule sequencing. New Phytologist
 
 USEARCH/UCLUST: 
 -Edgar, R.C. 2010. Search and clustering orders of magnitude faster than BLAST. 
@@ -671,7 +673,7 @@ def annotateIt(filetoannotate, outFile, failsFile, Multiplex_perBC_flag=True, Du
 					LocusTaxonCountDict[taxon_name, locus_name] = 1 #initiate the key and give count = 1
 				seq_processed_list.append(seq_name)
 		except:
-			log.write("\tThe combo" + str(key) + "wasn't found in" + str(locus_name) + '\n')
+			log.write("\tThe combo '" + str(key) + "' wasn't found in " + str(locus_name) + '\n')
 			if Multiplex_perBC_flag:
 				new_seq_name = locus_name + '|' + group_name + '|' + seq_name.replace(seq_name_toErase, '')
 			else:
@@ -705,6 +707,20 @@ def sortIt_length(file, verbose_level=0):
 		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
 		log.write(str(err))
 	return outFile # having it spit out the outfile name, if necessary, so that it can be used to call downstream stuff and avoid complicated glob.globbing
+
+def sortIt_size(file, thresh, round, verbose_level=0):
+	"""Sorts clusters by size, and removes those that are smaller than a particular size
+	(sent as thresh -- ie, sizeThreshold). 
+    "round" is used to annotate the outfile name with S1, S2, etc. depending on which sort this is"""
+	outFile = re.sub(r"(.*)\.fa", r"\1Ss%s.fa" %(round), file)
+	usearch_cline = "%s -sortbysize %s -fastaout %s -minsize %f" %(Usearch, file, outFile, thresh)
+	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	(out, err) = process.communicate() #the stdout and stderr
+	savestdout = sys.stdout 
+	if verbose_level == 2:
+		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
+		log.write(str(err))
+	return outFile
 
 def align_and_consensus(inputfile, output_prefix):
 	"""Align a fasta and output the consensus sequence; Note that consensus threshold can be modified"""
@@ -783,20 +799,6 @@ def deChimeIt(file, round, abskew=1.9, verbose_level=0):
 			chimera_count = chimera_count + 1
 	return outFile, chimera_count
 	
-def sortIt_size(file, thresh, round, verbose_level=0):
-	"""Sorts clusters by size, and removes those that are smaller than a particular size
-	(sent as thresh -- ie, sizeThreshold). 
-    "round" is used to annotate the outfile name with S1, S2, etc. depending on which sort this is"""
-	outFile = re.sub(r"(.*)\.fa", r"\1Ss%s.fa" %(round), file)
-	usearch_cline = "%s -sortbysize %s -fastaout %s -minsize %f" %(Usearch, file, outFile, thresh)
-	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-	(out, err) = process.communicate() #the stdout and stderr
-	savestdout = sys.stdout 
-	if verbose_level == 2:
-		log.write('\n**Usearch-sorting output on' + str(file) + '**\n')
-		log.write(str(err))
-	return outFile
-
 def muscleIt(file, verbose_level=0):
 	"""Aligns the sequences using MUSCLE"""
 	outFile = re.sub(r"(.*)\..*", r"\1.afa", file) 
@@ -890,6 +892,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 							ClusterToSeq_dict1[key].append(seq)
 						except:
 							ClusterToSeq_dict1[key] = [seq]
+
 				# Go through the second clustering uc file
 				ClusterToSeq_dict2 = {}
 				for line in open(outClustFile2, 'rU'):	
@@ -902,6 +905,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict2[key].append(seq)
 							except:
 								ClusterToSeq_dict2[key] = [seq]
+
 				# Go through the third clustering uc file
 				ClusterToSeq_dict3 = {}
 				for line in open(outClustFile3, 'rU'):	
@@ -914,6 +918,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict3[key].append(seq)
 							except:
 								ClusterToSeq_dict3[key] = [seq]
+
 				# Go through the forth clustering uc file
 				ClusterToSeq_dict4 = {}
 				for line in open(outClustFile4, 'rU'):	
@@ -1014,6 +1019,8 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 		outputfile_reconsensus.close()
 	
 	return LocusTaxonCountDict_clustd, LocusTaxonCountDict_chimera
+
+
 
 
 ################################################ Setup ################################################
@@ -1184,12 +1191,12 @@ else:
 	
 	# Check if dependencies are in place
 	sys.stderr.write('Checking dependencies...\n')
-	if not os.path.isfile(Usearch):
-		sys.exit("Error: couldn't find the Usearch executable")
+	if not os.path.isfile(Usearch): 
+		sys.exit("Error: couldn't find the Usearch executable. Tried to find it here: " + str(Usearch))
 	if not os.path.isfile(Cutadapt):
-		sys.exit("Error: couldn't find the Cutadapt executable")
+		sys.exit("Error: couldn't find the Cutadapt executable. Tried to find it here: " + str(Cutadapt))
 	if not os.path.isfile(Muscle):
-		sys.exit("Error: couldn't find the Muscle executable")
+		sys.exit("Error: couldn't find the Muscle executable. Tried to find it here: " + str(Muscle))
 	
 	# Check if muscle can be executed
 	muscle_cline = '%s -version' % (Muscle)
@@ -1272,8 +1279,8 @@ if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 	shutil.rmtree(BLAST_DBs_folder)
 os.makedirs(BLAST_DBs_folder)
 os.chdir(BLAST_DBs_folder)
-makeBlastDB('../' + refseq_filename, refseq_databasefile) # and one of the reference sequences
-makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # one of the barcodes
+makeBlastDB('../' + refseq_filename, refseq_databasefile) # Make BLAST database for the reference sequences
+makeBlastDB('../' + barcode_seq_filename, barcode_databasefile) # And one of the barcodes
 os.chdir('..')
 
 ## Read sequences ##
