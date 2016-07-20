@@ -20,7 +20,7 @@ PURC can be ran on Mac OSX and Linux machines. It is not currently compatible wi
 
 ## **Quick Start** ##
 ### Step 1: setup ###
-PURC consists of purc.py (and two other variations--purc_recluster.py, purc_resplit.py--that we describe below) and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
+PURC consists of purc.py (and another variation--purc_recluster.py--that we describe below) and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
 ```
 #!shell
 ./install_dependencies.sh
