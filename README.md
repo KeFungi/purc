@@ -114,12 +114,12 @@ If you want to adjust clustering parameters, instead of re-running the whole thi
 
 Usage: 
 ```
-./purc_recluster.py annotated_seq_file output_folder clustID1 clustID2 clustID3 clustID4 sizeThreshold1 sizeThreshold2 abundance_skew
+./purc_recluster.py -f annotated_seq_file -o output_folder -c clustID1 clustID2 clustID3 clustID4 -s sizeThreshold1 sizeThreshold2 -a abundance_skew --clean
 ```
 
 Example: 
 ```
-./purc_recluster.py run_3_annotated.fa recluster 0.997 0.995 0.99 0.997 1 4 1.9
+./purc_recluster.py -f purc_3_annotated.fa -o recluster -c 0.997 0.995 0.99 0.997 -s 1 4 --clean
 ```
 
 Note: 
