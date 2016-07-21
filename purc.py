@@ -81,6 +81,14 @@ def rename_fasta(infile):
 	(out, err) = process.communicate()
 	return outfile
 
+def check_fasta(infile):
+	"""Check if this is a good fasta file, if so return True, if not return False"""
+	for line in open(infile, 'rU'):
+		if line.startswith('>'):
+			return True
+		else:
+			return False
+
 def count_seq_from_fasta(infile):
 	"""Yep. Just returns the number of sequence contain in a fasta file"""
 	cmdLine = "grep '>' %s | wc -w" % infile
@@ -1055,11 +1063,9 @@ class ScoringMatrix(object):
             fs = open(filename)
         else:
             fs = StringIO.StringIO(text)
-
         self.scores = []
         self.bases = None
         self.wildcard_score = wildcard_score
-
         for line in fs:
             if line[0] == '#':
                 continue
@@ -1070,7 +1076,6 @@ class ScoringMatrix(object):
             else:
                 cols = line.split()
                 self.scores.extend([int(x) for x in cols[1:]])
-
         fs.close()
 
     def score(self, one, two, wildcard=None):
@@ -1087,7 +1092,6 @@ class ScoringMatrix(object):
 
         return self.scores[(one_idx * self.base_count) + two_idx]
 
-
 class IdentityScoringMatrix(object):
     def __init__(self, match=1, mismatch=-1):
         self.match = match
@@ -1103,7 +1107,6 @@ class IdentityScoringMatrix(object):
 
 NucleotideScoringMatrix = IdentityScoringMatrix
 
-
 class Matrix(object):
     def __init__(self, rows, cols, init=None):
         self.rows = rows
@@ -1115,7 +1118,6 @@ class Matrix(object):
 
     def set(self, row, col, val):
         self.values[(row * self.cols) + col] = val
-
 
 class LocalAlignment(object):
     def __init__(self, scoring_matrix, gap_penalty=-1, gap_extension_penalty=-1, gap_extension_decay=0.0, prefer_gap_runs=True, verbose=False, globalalign=False, wildcard=None, full_query=False):
@@ -1132,29 +1134,22 @@ class LocalAlignment(object):
     def align(self, ref, query, ref_name='', query_name='', rc=False):
         orig_ref = ref
         orig_query = query
-
         ref = ref.upper()
         query = query.upper()
-
         matrix = Matrix(len(query) + 1, len(ref) + 1, (0, ' ', 0))
         for row in xrange(1, matrix.rows):
             matrix.set(row, 0, (0, 'i', 0))
-
         for col in xrange(1, matrix.cols):
             matrix.set(0, col, (0, 'd', 0))
-
         max_val = 0
         max_row = 0
         max_col = 0
-
         # calculate matrix
         for row in xrange(1, matrix.rows):
             for col in xrange(1, matrix.cols):
                 mm_val = matrix.get(row - 1, col - 1)[0] + self.scoring_matrix.score(query[row - 1], ref[col - 1], self.wildcard)
-
                 ins_run = 0
                 del_run = 0
-
                 if matrix.get(row - 1, col)[1] == 'i':
                     ins_run = matrix.get(row - 1, col)[2]
                     if matrix.get(row - 1, col)[0] == 0:
@@ -1167,7 +1162,6 @@ class LocalAlignment(object):
                             ins_val = matrix.get(row - 1, col)[0] + min(0, self.gap_extension_penalty + ins_run * self.gap_extension_decay)
                 else:
                     ins_val = matrix.get(row - 1, col)[0] + self.gap_penalty
-
                 if matrix.get(row, col - 1)[1] == 'd':
                     del_run = matrix.get(row, col - 1)[2]
                     if matrix.get(row, col - 1)[0] == 0:
@@ -1186,11 +1180,9 @@ class LocalAlignment(object):
                     cell_val = max(mm_val, del_val, ins_val)
                 else:
                     cell_val = max(mm_val, del_val, ins_val, 0)
-
                 if not self.prefer_gap_runs:
                     ins_run = 0
                     del_run = 0
-
                 if del_run and cell_val == del_val:
                     val = (cell_val, 'd', del_run + 1)
                 elif ins_run and cell_val == ins_val:
@@ -1203,14 +1195,12 @@ class LocalAlignment(object):
                     val = (cell_val, 'i', 1)
                 else:
                     val = (0, 'x', 0)
-
                 if val[0] >= max_val:
                     max_val = val[0]
                     max_row = row
                     max_col = col
 
                 matrix.set(row, col, val)
-
         # backtrack
         if self.globalalign:
             # backtrack from last cell
@@ -1233,10 +1223,8 @@ class LocalAlignment(object):
             row = max_row
             col = max_col
             val = max_val
-
         op = ''
         aln = []
-
         path = []
         while True:
             val, op, runlen = matrix.get(row, col)
@@ -1250,10 +1238,8 @@ class LocalAlignment(object):
             else:
                 if val <= 0:
                     break
-
             path.append((row, col))
             aln.append(op)
-
             if op == 'm':
                 row -= 1
                 col -= 1
@@ -1263,17 +1249,13 @@ class LocalAlignment(object):
                 col -= 1
             else:
                 break
-
         aln.reverse()
-
         if self.verbose:
             self.dump_matrix(ref, query, matrix, path)
             print aln
             print (max_row, max_col), max_val
-
         cigar = _reduce_cigar(aln)
         return Alignment(orig_query, orig_ref, row, col, cigar, max_val, ref_name, query_name, rc, self.globalalign, self.wildcard)
-
     def dump_matrix(self, ref, query, matrix, path, show_row=-1, show_col=-1):
         sys.stdout.write('      -      ')
         sys.stdout.write('       '.join(ref))
@@ -1290,8 +1272,6 @@ class LocalAlignment(object):
                 else:
                     sys.stdout.write(' %5s%s%s' % (matrix.get(row, col)[0], matrix.get(row, col)[1], '$' if (row, col) in path else ' '))
             sys.stdout.write('\n')
-
-
 def _reduce_cigar(operations):
     count = 1
     last = None
@@ -1307,15 +1287,11 @@ def _reduce_cigar(operations):
     if last:
         ret.append((count, last.upper()))
     return ret
-
-
 def _cigar_str(cigar):
     out = ''
     for num, op in cigar:
         out += '%s%s' % (num, op)
     return out
-
-
 class Alignment(object):
     def __init__(self, query, ref, q_pos, r_pos, cigar, score, ref_name='', query_name='', rc=False, globalalign=False, wildcard=None):
         self.query = query
@@ -1329,25 +1305,18 @@ class Alignment(object):
         self.rc = rc
         self.globalalign = globalalign
         self.wildcard = wildcard
-
         self.r_offset = 0
         self.r_region = None
-
         self.orig_query = query
         self.query = query.upper()
-
         self.orig_ref = ref
         self.ref = ref.upper()
-
         q_len = 0
         r_len = 0
-
         self.matches = 0
         self.mismatches = 0
-
         i = self.r_pos
         j = self.q_pos
-
         for count, op in self.cigar:
             if op == 'M':
                 q_len += count
@@ -1359,7 +1328,6 @@ class Alignment(object):
                         self.mismatches += 1
                     i += 1
                     j += 1
-
             elif op == 'I':
                 q_len += count
                 j += count
@@ -1368,14 +1336,12 @@ class Alignment(object):
                 r_len += count
                 i += count
                 self.mismatches += count
-
         self.q_end = q_pos + q_len
         self.r_end = r_pos + r_len
         if self.mismatches + self.matches > 0:
             self.identity = float(self.matches) / (self.mismatches + self.matches)
         else:
             self.identity = 0
-
     def set_ref_offset(self, ref, offset, region):
         self.r_name = ref
         self.r_offset = offset
@@ -1403,9 +1369,7 @@ class Alignment(object):
             elif op == 'D':
                 rpos += count
                 ext_cigar_str += 'D' * count
-
             working = _reduce_cigar(ext_cigar_str)
-
         out = ''
         for num, op in working:
             out += '%s%s' % (num, op)
@@ -1418,13 +1382,11 @@ class Alignment(object):
     def dump(self, wrap=None, out=sys.stdout):
         i = self.r_pos
         j = self.q_pos
-
         q = ''
         m = ''
         r = ''
         qlen = 0
         rlen = 0
-
         for count, op in self.cigar:
             if op == 'M':
                 qlen += count
@@ -1436,7 +1398,6 @@ class Alignment(object):
                         m += '|'
                     else:
                         m += '.'
-
                     i += 1
                     j += 1
             elif op == 'D':
@@ -1453,12 +1414,10 @@ class Alignment(object):
                     r += '-'
                     m += ' '
                     j += 1
-
             elif op == 'N':
                 q += '-//-'
                 r += '-//-'
                 m += '    '
-
         if self.q_name:
             out.write('Query: %s%s (%s nt)\n' % (self.q_name, ' (reverse-compliment)' if self.rc else '', len(self.query)))
         if self.r_name:
@@ -1466,14 +1425,11 @@ class Alignment(object):
                 out.write('Ref  : %s (%s)\n\n' % (self.r_name, self.r_region))
             else:
                 out.write('Ref  : %s (%s nt)\n\n' % (self.r_name, len(self.ref)))
-
         poslens = [self.q_pos + 1, self.q_end + 1, self.r_pos + self.r_offset + 1, self.r_end + self.r_offset + 1]
         maxlen = max([len(str(x)) for x in poslens])
-
         q_pre = 'Query: %%%ss ' % maxlen
         r_pre = 'Ref  : %%%ss ' % maxlen
         m_pre = ' ' * (8 + maxlen)
-
         rpos = self.r_pos
         if not self.rc:
             qpos = self.q_pos
@@ -1498,11 +1454,9 @@ class Alignment(object):
                 qfragment = q
                 mfragment = m
                 rfragment = r
-
                 q = ''
                 m = ''
                 r = ''
-
             out.write(qfragment)
             if not self.rc:
                 for base in qfragment:
@@ -1517,7 +1471,6 @@ class Alignment(object):
                 out.write(' %s\n' % qpos)
             else:
                 out.write(' %s\n' % (qpos + 1))
-
             out.write(m_pre)
             out.write(mfragment)
             out.write('\n')
@@ -1527,7 +1480,6 @@ class Alignment(object):
                 if base != '-':
                     rpos += 1
             out.write(' %s\n\n' % (rpos + self.r_offset))
-
         out.write("Score: %s\n" % self.score)
         out.write("Matches: %s (%.1f%%)\n" % (self.matches, self.identity * 100))
         out.write("Mismatches: %s\n" % (self.mismatches,))
@@ -1591,7 +1543,7 @@ else:
 			elif setting_name == 'Input_sequence_file':
 				raw_sequences = setting_argument
 				if not os.path.isfile(raw_sequences):
-					sys.exit("Error: couldn't find " + raw_sequences)
+					sys.exit("Error: could not find " + raw_sequences)
 			elif setting_name == "Align":
 				Align = int(setting_argument)
 			elif setting_name == 'Output_prefix':
@@ -1614,7 +1566,7 @@ else:
 				mapping_file_list = setting_argument.replace(' ', '').replace('\t', '').split(',')
 				for mapfile in mapping_file_list:
 					if not os.path.isfile(mapfile):
-						sys.exit("Error: couldn't find " + mapfile)
+						sys.exit("Error: could not find " + mapfile)
 			elif setting_name == 'Usearch':
 				if setting_argument.startswith('Dependencies/'):
 					Usearch = ppp_location + '/' + setting_argument
@@ -1659,11 +1611,11 @@ else:
 			elif setting_name == 'in_Barcode_seq_file':	
 				barcode_seq_filename = setting_argument
 				if not os.path.isfile(barcode_seq_filename):
-					sys.exit("Error: couldn't find " + barcode_seq_filename)
+					sys.exit("Error: could not find " + barcode_seq_filename)
 			elif setting_name == 'in_RefSeq_seq_file':	
 				refseq_filename = setting_argument
 				if not os.path.isfile(refseq_filename):
-					sys.exit("Error: couldn't find " + refseq_filename)				
+					sys.exit("Error: could not find " + refseq_filename)				
 			elif setting_name == 'Dual_barcode':
 				if setting_argument == '0':
 					Dual_barcode = False
@@ -1784,19 +1736,28 @@ else:
 
 ################################################ RUN YO!!! ########################################
 sys.stderr.write('Renaming sequences...\n')
-raw_sequences = rename_fasta(raw_sequences)
+try:
+	raw_sequences = rename_fasta(raw_sequences)
+except:
+	sys.exit('ERROR: failed to rename ' + raw_sequences)
 
 if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
 	shutil.rmtree(BLAST_DBs_folder)
 os.makedirs(BLAST_DBs_folder)
 os.chdir(BLAST_DBs_folder)
-makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
-makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
+try:
+	makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
+	makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
+except:
+	sys.exit('ERROR: failed to make blast database')
 os.chdir('..')
 
 ## Read sequences ##
 sys.stderr.write('Reading sequences...\n')
-SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
+try:
+	SeqDict = SeqIO.index(raw_sequences, 'fasta') # Read in the raw sequences as dictionary, using biopython's function
+except:
+	sys.exit('ERROR: failed to index ' + raw_sequences)
 count_total_input_sequences = len(SeqDict)
 sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
 
@@ -1823,6 +1784,8 @@ if mode == 0: # QC mode
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
 	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
 	log.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
+	if not check_fasta(raw_sequences):
+		sys.exit('Error: concatemers-removal returned no sequence')
 
 ## Remove barcodes ##
 log.write('\n#Barcode Removal#\n')
@@ -1841,6 +1804,8 @@ count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefi
 sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have barcode\n')
 sys.stderr.write('\t' + str(count_seq_wo_bc) + ' sequences have no barcode\n')
 sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+if count_seq_w_bc == str(0):
+	sys.exit('Error: barcode-removal returned no sequence')
 
 if Recycle_bc:
 	sys.stderr.write('Looking for barcodes in the no-barcode sequences, using Smith-Waterman pairwise alignment...\n')
@@ -1857,6 +1822,8 @@ doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_fol
 count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_pr_trimmed.fa')
 sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
 log.write('\t...done\n\n')
+if count_seq_pr_trimmed == str(0):
+	sys.exit('Error: primer-removal returned no sequence')
 
 ## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
 log.write('#Sequence Annotation#\n')
@@ -1869,6 +1836,8 @@ count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_pre
 sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
 sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
 log.write('\t...done\n\n')
+if count_seq_annotated == str(0):
+	sys.exit('Error: annotation step returned no sequence')
 
 if mode == 2:
 	sys.exit('Done')
