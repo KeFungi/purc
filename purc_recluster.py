@@ -554,6 +554,8 @@ log_file = 'purc_log_' + time_stamp + '.txt'
 log = open(log_file, 'w')
 log.write(logo + '\n')
 log.write('purc_recluster.py ' + annotated_file + ' ' + masterFolder + ' ' + str(clustID) + ' ' + str(clustID2) + ' ' + str(clustID3) + ' ' + str(sizeThreshold) + ' ' + str(sizeThreshold2) + '\n\n')
+if not os.path.isfile(annotated_file):
+	sys.exit("Error: could not find " + annotated_file)
 
 ## Recluster and redechimera ##
 LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
