@@ -801,6 +801,10 @@ def deChimeIt(file, round, abskew=1.9, verbose_level=0):
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, file, abskew, outFile, outFile_uchime)
+	
+	## To make the chimera-killing more stringent, change the usearch command line (above) to something like:
+	# usearch_cline = "%s -uchime_denovo %s -abskew 1.1 -minh 0.2 -xn 3 -dn 0.5 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
+
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 

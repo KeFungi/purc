@@ -499,7 +499,7 @@ required.add_argument('-s','--size_threshold', type=int, nargs=2, metavar='\b', 
                     help='The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)',
                     default=[1, 4])
 
-parser.add_argument('-a','--abuncdance_skew', type=float, nargs=1, metavar='\b',
+parser.add_argument('-a','--abundance_skew', type=float, nargs=1, metavar='\b',
                     help='The parameter to control chimera-killing; the default is 1.9',
                     default=1.9)
 parser.add_argument('--clean', action="store_true",
@@ -515,7 +515,7 @@ clustID3 = args.clustering_identities[2]
 clustID4 = args.clustering_identities[3]
 sizeThreshold = args.size_threshold[0]
 sizeThreshold2 = args.size_threshold[1]
-abskew = args.abuncdance_skew[0]
+abskew = args.abundance_skew  #FW TODO -- this ok now? It was: abskew = args.abundance_skew[0]
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
@@ -558,7 +558,12 @@ if not os.path.isfile(annotated_file):
 	sys.exit("Error: could not find " + annotated_file)
 
 ## Recluster and redechimera ##
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+
+#FW TODO -- can you make the paths work regardless of whether absolute or relative paths are used?
+# rel. path version: LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+print "annotated_file is ", annotated_file
+LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera(annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+
 
 taxon_list = []
 locus_list = []
