@@ -595,6 +595,8 @@ for each_taxon in set(taxon_list):
 	log.write('\n')
 
 # Output clustered seq count
+## TODO -- this is currently outputting the counts of the num of "alleles" BEFORE the final clustering 
+## of the clusters, I think. We need the counts from after that final clustering
 count_output.write('\n**Final clustered sequences per accession per locus**\n')
 log.write('\n**Final clustered sequences per accession per locus**\n')
 count_output.write('\t' + '\t'.join(locus_list) + '\n')	
@@ -617,7 +619,7 @@ count_output.write('\n**Allele/copy/cluster/whatever count by locus**\n')
 log.write('\n**Allele/copy/cluster/whatever count by locus**\n')	
 
 for each_locus in locus_list:
-	file_name = str(each_locus) + '_clustered.txt'
+	file_name = str(each_locus) + '_clustered_reconsensus.fa'
 	try: 
 		seq_no = len(parse_fasta(file_name))
 		count_output.write(str(each_locus) + '\t' + str(seq_no) + '\n')
