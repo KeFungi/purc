@@ -136,7 +136,7 @@ required arguments:
                         singletons, 3 to remove singletons and doubles, etc)
 optional arguments:
   -h, --help            show this help message and exit
-  -a, --abuncdance_skew
+  -a, --abundance_skew
                         The parameter to control chimera-killing; the default
                         is 1.9
   --clean               Remove the intermediate files
@@ -247,4 +247,4 @@ BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
 ### Who do I talk to? ###
 Fay-Wei Li ([fl43@duke.edu](fl43@duke.edu))
 
-Carl Rothfels ([crothfels@yahoo.ca](crothfels@yahoo.ca))
+Carl Rothfels ([crothfels@berkeley.edu](crothfels@berkeley.edu))
