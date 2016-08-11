@@ -522,9 +522,6 @@ sizeThreshold = args.size_threshold[0]
 sizeThreshold2 = args.size_threshold[1]
 abskew = args.abundance_skew[0]
 
-print abskew
-
-
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
 Muscle = purc_location + '/' + 'Dependencies/muscle3.8.31'

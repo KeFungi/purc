@@ -1678,7 +1678,8 @@ else:
 	(out, err) = process.communicate() #the stdout and stderr
 	#print out
 	if not str(out).startswith('cutadapt'):
-		sys.exit("Error: could not execute Cutadapt")
+		if not str(out).startswith('Usage'): #for older cutadapt version
+			sys.exit("Error: could not execute Cutadapt")
 
 	# Check if blast can be execuated
 	blast_cline = 'blastn -version'
