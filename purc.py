@@ -131,15 +131,15 @@ def BlastSeq(inputfile, outputfile, databasefile, num_threads=1, evalue=0.000000
 	return
 
 def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict, SplitChimera=False):
-	"""Blastes each input sequence to the reference database to detect chimeric sequences (i.e. a sequence that matches two different loci) 
+	"""Blasts each input sequence to the reference database to detect concatemers (i.e. a sequence that matches two different loci) 
 	Return "chimera_dict", in which the sequence name is the key and [locus_name1, locus_name2] is the value
-	If SplitChimera = True, then will split the chimeric sequence into two loci, based on the coordinates returned from BLAST. 
+	If SplitChimera = True, then will split the concatemer into two loci, based on the coordinates returned from BLAST. 
 		NOTE: to ensure the BC are split together with each locus, the orientation/strand also matters. 
 	"""
 	BlastSeq(inputfile_raw_sequences, outputfile_blast, databasefile, num_threads=num_threads, evalue=1e-100, max_target=100, outfmt='6 qacc sacc length pident evalue qstart qend qlen sstrand')
 	
 	chimera_blast = open(outputfile_blast, 'rU') # Read the blast result
-	chimeras = open(outputfile_chimeras, 'w') # File to save chimera sequences
+	chimeras = open(outputfile_chimeras, 'w') # File to save chimera sequences (concatemers)
 	non_chimeras = open(outputfile_goodSeqs, 'w') # File to save non-chimeric, good sequences
 
 	loci_info_dict = {} 
