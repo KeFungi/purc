@@ -75,7 +75,13 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 	(could be by barcode or by locus, etc); returns a dictionary of seq counts for each subgroup"""
 	
 	#annotd_seqs = open(annotd_seqs_file, 'rU')
-	unsplit_seq = parse_fasta(annotd_seqs_file)	
+	unsplit_seq = parse_fasta(annotd_seqs_file)
+
+	try:	
+		os.chdir(masterFolder)
+	except:
+		pass
+
 	splits_file_dic = {}
 	splits_count_dic = {}
 	LocusTaxonCountDict_unclustd = {}
@@ -325,19 +331,6 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 				sorted_size4 = sortIt_size(file = deChimered4, thresh = sizeThreshold2, round = 4, verbose_level = verbose_level)
 
-				try:
-					clustered_seq_file = parse_fasta(sorted_size4)
-					for each_seq in clustered_seq_file:
-						#taxon_name = str(each_seq.id).split('|')[0].split('=')[-1] # for example, get C_dia_5316 from centroid=centroid=C_dia_5316|ApP|C|BC02|_p0/158510/ccs;ee=1.9;;seqs=6;seqs=18;size=27;					
-						try:
-							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
-							# The locus names are the same as locus_folder
-						except:
-							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] = 1		
-				except:
-					if verbose_level in [1,2]:
-						log.write(str(sorted_size4) + 'is an empty file\n')
-
 				### Collect all sequences from each cluster and re-consensus ###
 				# Go through the first clustering uc file
 				ClusterToSeq_dict1 = {}
@@ -427,6 +420,18 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 						chimera_count5 = chimera_count5 + 1
 				LocusTaxonCountDict_chimera[taxon_folder, locus_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5]
 
+				## Count clustered seq and store in LocusTaxonCountDict_clustd as {('C_dia_5316', 'ApP'): 28} for example ##
+				try:
+					clustered_seq_file = parse_fasta(taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa')
+					for each_seq in clustered_seq_file:
+						try:
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] += 1  # {('C_dia_5316', 'ApP'): 28} for example
+						except:
+							LocusTaxonCountDict_clustd[taxon_folder, locus_folder] = 1		
+				except:
+					if verbose_level in [1,2]:
+						log.write(str(all_consensus_seq) + 'is an empty file\n')
+
 				## Rename sequences in the final fasta: add taxon name ##
 				sed_cmd = "sed 's/>/>%s_/g' %s > %s" % (taxon_folder, taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh.fa', taxon_folder + '_Cluster_FinalconsensusSsC' + str(clustID4) + 'dCh_renamed.fa')
 				process = subprocess.Popen(sed_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
@@ -515,7 +520,7 @@ clustID3 = args.clustering_identities[2]
 clustID4 = args.clustering_identities[3]
 sizeThreshold = args.size_threshold[0]
 sizeThreshold2 = args.size_threshold[1]
-abskew = args.abundance_skew  #FW TODO -- this ok now? It was: abskew = args.abundance_skew[0]
+abskew = args.abundance_skew[0]
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
@@ -546,7 +551,6 @@ if not str(out).startswith('usearch'):
 if os.path.exists(masterFolder): # overwrite existing folder
 	shutil.rmtree(masterFolder)
 os.makedirs(masterFolder)
-os.chdir(masterFolder)
 
 ts = time.time()
 time_stamp = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%d_%H-%M-%S')
@@ -559,9 +563,7 @@ if not os.path.isfile(annotated_file):
 
 ## Recluster and redechimera ##
 
-#FW TODO -- can you make the paths work regardless of whether absolute or relative paths are used?
-# rel. path version: LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
-print "annotated_file is ", annotated_file
+#print "annotated_file is ", annotated_file
 LocusTaxonCountDict_clustd, LocusTaxonCountDict_unclustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera(annotated_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 
@@ -595,8 +597,6 @@ for each_taxon in set(taxon_list):
 	log.write('\n')
 
 # Output clustered seq count
-## TODO -- this is currently outputting the counts of the num of "alleles" BEFORE the final clustering 
-## of the clusters, I think. We need the counts from after that final clustering
 count_output.write('\n**Final clustered sequences per accession per locus**\n')
 log.write('\n**Final clustered sequences per accession per locus**\n')
 count_output.write('\t' + '\t'.join(locus_list) + '\n')	
