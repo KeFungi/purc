@@ -1657,14 +1657,7 @@ else:
 					sys.exit('Error: incorrect setting of Recycle_chimeric_seq')
 	
 	# Check if dependencies are in place
-	sys.stderr.write('Checking dependencies...\n')
-	if not os.path.isfile(Usearch): 
-		sys.exit("Error: couldn't find the Usearch executable. Tried to find it here: " + str(Usearch))
-	if not os.path.isfile(Cutadapt):
-		sys.exit("Error: couldn't find the Cutadapt executable. Tried to find it here: " + str(Cutadapt))
-	if not os.path.isfile(Muscle):
-		sys.exit("Error: couldn't find the Muscle executable. Tried to find it here: " + str(Muscle))
-	
+	sys.stderr.write('Checking dependencies...\n')	
 	# Check if muscle can be executed
 	muscle_cline = '%s -version' % (Muscle)
 	process = subprocess.Popen(muscle_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
