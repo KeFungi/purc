@@ -506,7 +506,7 @@ required.add_argument('-s','--size_threshold', type=int, nargs=2, metavar='\b', 
 
 parser.add_argument('-a','--abundance_skew', type=float, nargs=1, metavar='\b',
                     help='The parameter to control chimera-killing; the default is 1.9',
-                    default=1.9)
+                    default=[1.9])
 parser.add_argument('--clean', action="store_true",
                     help='Remove the intermediate files')
 
@@ -521,6 +521,9 @@ clustID4 = args.clustering_identities[3]
 sizeThreshold = args.size_threshold[0]
 sizeThreshold2 = args.size_threshold[1]
 abskew = args.abundance_skew[0]
+
+print abskew
+
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
