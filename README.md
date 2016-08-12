@@ -16,7 +16,7 @@ PURC allows users to extract and analyze all the copies of a given locus present
 * Compute consensus sequence for each cluster
 * Produce sequence alignments ready for downstream phylogenetic analyses
 
-PURC can be ran on Mac OSX and Linux machines. It is not currently compatible with PCs.
+PURC can be ran on Mac OSX and Linux machines. For PCs, you need to additionally install cygwin and Microsoft Visual C++ 2008 (use the 32-bit version). 
 
 ## **Quick Start** ##
 ### Step 1: setup ###
