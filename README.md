@@ -16,7 +16,7 @@ PURC allows users to extract and analyze all the copies of a given locus present
 * Compute consensus sequence for each cluster
 * Produce sequence alignments ready for downstream phylogenetic analyses
 
-PURC can be ran on Mac OSX and Linux machines. It is not currently compatible with PCs.
+PURC can be ran on Mac OSX and Linux machines. For PCs, you need to additionally install cygwin and Microsoft Visual C++ 2008 (use the 32-bit version). 
 
 ## **Quick Start** ##
 ### Step 1: setup ###
@@ -242,6 +242,13 @@ BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
      PURC produces a number of intermediate files during the clustering/chimera-killing steps. The '.uc' and '.uchime' files are from USEARCH and UCHIME, respectively, and contain detailed clustering and chimera detection results. The fasta files from each clustering/chimera-killing steps are saved as well. 'Sl' means fasta sorted by length, 'C1_0.997' means the first clustering with identity of 0.997, 'dCh1' means the first chimera detection, 'Ss' means fasta sorted by cluster size. If you don't want to keep all these intermediate files (to save space for example), in configuration file use 
 
         Remove_intermediates = 1
+
+
+* Why do some of my sequences come out of the pipeline much shorter than they went in?
+
+     Barcodes and primer sequences will be trimmed in the pipeline, so the final sequences should be somewhat shorter
+than the ones that enter the pipeline. However, if sequences are much shorter, that suggests that the primer-detection
+settings are too lax, and thus primers are being "found" in the middle of the sequences. If this happens, then that region and everything downstream will be erased. To fix this problem, you have to manual change the cutadapt settings in purc.py. There are instructions on how to do this in purc.py itself, around line 528.
 
 
 ### Who do I talk to? ###
