@@ -4,7 +4,7 @@ logo = """
 -------------------------------------------------------------
 |                            PURC                           |
 |        Pipeline for Untangling Reticulate Complexes       |
-|                        version 1.01                       | 
+|                        version 1.02                       | 
 |           https://bitbucket.org/crothfels/purc            |
 |															|
 |                 Fay-Wei Li & Carl J Rothfels              |
@@ -525,7 +525,10 @@ def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50):
 		R_cutadapt_cline = R_cutadapt_cline + '-a ' + ReverseComplement(each_primer) + ' '
 
 	# Build the complete cutadapt command line
-	cutadapt_cline = '%s -O 15 -e 0.25 -n 2 -m %s %s %s %s > %s' % (Cutadapt, minimum_len, F_cutadapt_cline, R_cutadapt_cline, InFile, OutFile)
+	cutadapt_cline = '%s -O 15 -e 0.05 -n 2 -m %s %s %s %s > %s' % (Cutadapt, minimum_len, F_cutadapt_cline, R_cutadapt_cline, InFile, OutFile)
+	'''Here's where you can control some of the primer-detection settings. Pay particular attention to the error rate: if that
+	is too large, primers may match internal regions of the sequence reads, resulting in that region and everything downstream
+	being trimmed away. If the sequences at the end of the pipeline are too short, that's probably what happened '''
 	# -O: Minimum overlap length. If the overlap between the read and the primer is shorter than -O, the read is not modified.
 	# -e: Maximum allowed error rate (no. of errors divided by the length of the matching region)
 	# -n: Try to remove primers at most -n times.
