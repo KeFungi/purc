@@ -244,6 +244,13 @@ BLAST+: Architecture and applications. BMC Bioinformatics 10: 421.
         Remove_intermediates = 1
 
 
+* Why do some of my sequences come out of the pipeline much shorter than they went in?
+
+     Barcodes and primer sequences will be trimmed in the pipeline, so the final sequences should be somewhat shorter
+than the ones that enter the pipeline. However, if sequences are much shorter, that suggests that the primer-detection
+settings are too lax, and thus primers are being "found" in the middle of the sequences. If this happens, then that region and everything downstream will be erased. To fix this problem, you have to manual change the cutadapt settings in purc.py. There are instructions on how to do this in purc.py itself, around line 528.
+
+
 ### Who do I talk to? ###
 Fay-Wei Li ([fl43@duke.edu](fl43@duke.edu))
 
