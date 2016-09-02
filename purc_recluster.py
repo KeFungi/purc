@@ -70,9 +70,9 @@ def parse_fasta(infile):
 	AllSeq = SeqIO.parse(infile, 'fasta')
 	return [i for i in AllSeq] 
 
-def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=False): 
+def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=False, Clust_particular=False, locus_to_clust='', specimen_to_clust=''): 
 	"""Uses the annotated sequences to split sequences into different files based on splits_list 
-	(could be by barcode or by locus, etc); returns a dictionary of seq counts for each subgroup"""
+	(could be by barcode or by locus, etc); returns a dictionary of seq counts for each subgroup; Clust_particular to control for specific specimen or locu to cluster"""
 	
 	#annotd_seqs = open(annotd_seqs_file, 'rU')
 	unsplit_seq = parse_fasta(annotd_seqs_file)
@@ -93,8 +93,14 @@ def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=Fal
 
 		if split_by == "taxon":
 			split = str(each_seq.id).split('|')[0]
+			if Clust_particular:
+				if split != specimen_to_clust:
+					continue
 		elif split_by == "locus":			
 			split = str(each_seq.id).split('|')[1]
+			if Clust_particular:
+				if split != locus_to_clust:
+					continue			
 		elif split_by == "taxon-locus":
 			split = str(each_seq.id).split('|')[0] + "_" + str(each_seq.id).split('|')[1]
 		elif split_by == "locus-taxon": # same as above, but folders/files labeled with locus name before taxon name
@@ -265,8 +271,11 @@ def align_and_consensus(inputfile, output_prefix):
 def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2, verbose_level = 1): # M_p_barcode was set to FALSE, whcih led to splitting by taxon instead of barcode
 	## Split sequences into separate files/folders for each locus ##
 	sys.stderr.write('Splitting sequences into a folder/file for each locus...\n')
-	locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus") 
-
+	if locus_to_cluster is not None: # specific target is given
+		locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Clust_particular = True, locus_to_clust = locus_to_cluster) 
+	else: # cluster all
+		locusCounts, LocusTaxonCountDict_unclustd = SplitBy(annotd_seqs_file = annotd_seqs_file, split_by = "locus", Clust_particular = False, locus_to_clust = '') 
+	
 	sys.stderr.write('Clustering/dechimera-izing seqs...\n')
 	log.write('#Sequence clustering/dechimera-izing#\n')
 	all_folders_loci = locusCounts.keys() # SplitBy makes a dictionary where the keys are the subcategories (and thus also the
@@ -283,7 +292,10 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 
 		if not os.stat(locus_folder + ".fa").st_size == 0: # ie, the file is not empty
 			## Split sequences into separate taxon folders ##
-			taxonCounts = SplitBy(annotd_seqs_file = locus_folder + ".fa", split_by = "taxon")					
+			if specimen_to_cluster is not None: # specific target is given
+				taxonCounts = SplitBy(annotd_seqs_file = locus_folder + ".fa", split_by = "taxon", Clust_particular = True, specimen_to_clust = specimen_to_cluster)					
+			else: # cluster all		
+				taxonCounts = SplitBy(annotd_seqs_file = locus_folder + ".fa", split_by = "taxon", Clust_particular = False, specimen_to_clust = '')								
 			all_folders_taxon = taxonCounts.keys()
 
 			for taxon_folder in all_folders_taxon:
@@ -504,14 +516,19 @@ required.add_argument('-s','--size_threshold', type=int, nargs=2, metavar='\b', 
                     help='The min. number of sequences/cluster necessary for that cluster to be retained (set to 2 to remove singletons, 3 to remove singletons and doubles, etc)',
                     default=[1, 4])
 
-parser.add_argument('-a','--abundance_skew', type=float, nargs=1, metavar='\b',
+optional = parser.add_argument_group('optional arguments')
+optional.add_argument('-a','--abundance_skew', type=float, nargs=1, metavar='\b',
                     help='The parameter to control chimera-killing; the default is 1.9',
                     default=[1.9])
-parser.add_argument('--clean', action="store_true",
+optional.add_argument('-l','--locus_to_cluster', type=str, action="store", metavar='\b',
+               		help='Only do clustering on this particular locus; e.g. -i APP')
+optional.add_argument('-i','--specimen_to_cluster', type=str, action="store", metavar='\b',
+               		help='Only do clustering on this particular specimen; e.g. -i Cystopteris_sp_7635')
+optional.add_argument('--clean', action="store_true",
                     help='Remove the intermediate files')
 
 args = parser.parse_args()
-
+	
 annotated_file = args.annotated_file
 masterFolder = args.output_folder
 clustID = args.clustering_identities[0]
@@ -521,6 +538,8 @@ clustID4 = args.clustering_identities[3]
 sizeThreshold = args.size_threshold[0]
 sizeThreshold2 = args.size_threshold[1]
 abskew = args.abundance_skew[0]
+specimen_to_cluster = args.specimen_to_cluster
+locus_to_cluster = args.locus_to_cluster
 
 purc_location = os.path.dirname(os.path.abspath( __file__ ))
 Usearch = purc_location + '/' + 'Dependencies/usearch8.1.1756'
