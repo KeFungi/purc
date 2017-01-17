@@ -252,6 +252,6 @@ settings are too lax, and thus primers are being "found" in the middle of the se
 
 
 ### Who do I talk to? ###
-Fay-Wei Li ([fl43@duke.edu](fl43@duke.edu))
+Fay-Wei Li ([fl329@cornell.edu](fl329@cornell.edu))
 
 Carl Rothfels ([crothfels@berkeley.edu](crothfels@berkeley.edu))
