@@ -57,6 +57,9 @@ PURC requires the following files:
         >BC03
         TATCTATCGTATACGC
 
+
+	Note that if you are using the dual barcode function, the names have to be BCF1, BCF2, ..., BCF9, and BCR1, BCR2, ..., BCR9, where         the F and R denote the barcodes on forward and reverse primers respectively. This is used to check whether there are invalid F-F or R-R situation; only F-R or R-F are kept.
+
 * **Reference sequence file** - In fasta format. PURC uses these references to assign reads to loci (and optionally to phylogenetic group). The sequences themselves must be free of gaps ("-") or else Blast will choke when it tries to make the Blast database. Each reference seq name must specify the locus ('locus=') that this sequence represents; you can optionally note where the sequence came from ('ref_taxon='). The ref_taxon information can contain anything (as long as no spaces are special characters are included) and is not used by PURC--it is only useful in allowing users to keep track of which sequences are included in their reference file more easily. Each designation is separated by a backslash ("/"). For example:
 
         >locus=ApP/ref_taxon=Cystopteris_bulbifera
@@ -94,6 +97,9 @@ PURC requires the following files:
     	BCF2	BCR1	Cystopteris_fragilis_Arizona
     	BCF1	BCR2	Cystopteris_fragilis_Taiwan
     	BCF2	BCR2	Cystopteris_fragilis_AMagicPlace
+
+
+    Again that if you are using the dual barcode function, the names have to be BCF1, BCF2, ..., BCF9, and BCR1, BCR2, ..., BCR9, where         the F and R denote the barcodes on forward and reverse primers respectively. This is used to check whether there are invalid F-F or R-R situation; only F-R or R-F are kept.
 
 ### Step 3: run ###
 PURC can be run by navigating to the directory that contains the configuration, barcode, reference sequence, and map files, and calling the program from there: 
@@ -196,6 +202,9 @@ BCF2	BCR1	species2
 BCF3	BCR1	species3
 ...
 ```
+    
+
+Again that if you are using the dual barcode function, the names have to be BCF1, BCF2, ..., BCF9, and BCR1, BCR2, ..., BCR9, where         the F and R denote the barcodes on forward and reverse primers respectively. This is used to check whether there are invalid F-F or R-R situation; only F-R or R-F are kept.
 
 ### Citation ###
 This script relies heavily on USEARCH, MUSCLE, and BLAST.
