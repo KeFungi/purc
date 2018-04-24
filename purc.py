@@ -764,9 +764,9 @@ def clusterIt(file, clustID, round, previousClusterToCentroid_dict, verbose_leve
 	outFile = re.sub(r"(.*)\.fa", r"\1C%s_%s.fa" %(round, clustID), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outClustFile = re.sub(r"(.*).fa", r"\1clusts%s.uc" %(round), file)
 	if round == 1:
-		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizeout" % (Usearch, file, clustID, outFile, outClustFile) 
+		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizeout -threads %s" % (Usearch, file, clustID, outFile, outClustFile, num_threads) 
 	elif round > 1:
-		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout" % (Usearch, file, clustID, outFile, outClustFile)
+		usearch_cline = "%s -cluster_fast %s -id %f -gapopen 3I/1E -consout %s -uc %s -sizein -sizeout -threads %s" % (Usearch, file, clustID, outFile, outClustFile, num_threads)
 	process = subprocess.Popen(usearch_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
 	(out, err) = process.communicate() #the stdout and stderr
 	savestdout = sys.stdout 
@@ -803,7 +803,7 @@ def deChimeIt(file, round, abskew=1.9, verbose_level=0):
 	"""Chimera remover"""
 	outFile = re.sub(r"(.*)\.fa", r"\1dCh%s.fa" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
 	outFile_uchime = re.sub(r"(.*)\.fa", r"\1dCh%s.uchime" %(round), file) # The rs indicate "raw" and thus python's escaping gets turned off
-	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s" % (Usearch, file, abskew, outFile, outFile_uchime)
+	usearch_cline = "%s -uchime_denovo %s -abskew %s -nonchimeras %s -uchimeout %s -threads %s" % (Usearch, file, abskew, outFile, outFile_uchime, num_threads)
 	
 	## To make the chimera-killing more stringent, change the usearch command line (above) to something like:
 	# usearch_cline = "%s -uchime_denovo %s -abskew 1.1 -minh 0.2 -xn 3 -dn 0.5 -nonchimeras %s -uchimeout %s" % (Usearch, file, outFile, outFile_uchime)
@@ -908,7 +908,8 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				## Collect all sequences from each cluster and re-consensus ##
 				# Go through the first clustering uc file
 				ClusterToSeq_dict1 = {}
-				for line in open(outClustFile1, 'rU'):	
+				file_to_read = open(outClustFile1, 'rU')
+				for line in file_to_read:	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -917,10 +918,12 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 							ClusterToSeq_dict1[key].append(seq)
 						except:
 							ClusterToSeq_dict1[key] = [seq]
+				file_to_read.close()
 
 				# Go through the second clustering uc file
 				ClusterToSeq_dict2 = {}
-				for line in open(outClustFile2, 'rU'):	
+				file_to_read = open(outClustFile2, 'rU')
+				for line in file_to_read:	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -930,10 +933,12 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict2[key].append(seq)
 							except:
 								ClusterToSeq_dict2[key] = [seq]
+				file_to_read.close()
 
 				# Go through the third clustering uc file
 				ClusterToSeq_dict3 = {}
-				for line in open(outClustFile3, 'rU'):	
+				file_to_read = open(outClustFile3, 'rU')				
+				for line in file_to_read:	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -943,10 +948,12 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict3[key].append(seq)
 							except:
 								ClusterToSeq_dict3[key] = [seq]
+				file_to_read.close()
 
 				# Go through the forth clustering uc file
 				ClusterToSeq_dict4 = {}
-				for line in open(outClustFile4, 'rU'):	
+				file_to_read = open(outClustFile4, 'rU')				
+				for line in file_to_read:	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -956,7 +963,8 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict4[key].append(seq)
 							except:
 								ClusterToSeq_dict4[key] = [seq]
-				
+				file_to_read.close()
+
 				## Align and re-consensus of all constituent seq for each cluster ##
 				SeqDict = SeqIO.index(taxon_folder + ".fa", 'fasta')
 				for each_cluster in ClusterToSeq_dict4:
@@ -995,6 +1003,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 					line = line.strip('\n')
 					if line.split('\t')[-1] == 'Y':
 						chimera_count5 = chimera_count5 + 1
+				uchime_out.close()
 				LocusTaxonCountDict_chimera[taxon_folder, locus_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5] # {('C_dia_5316', 'ApP'): [1,0,0,0,0]} for example
 
 				## Count clustered seq and store in LocusTaxonCountDict_clustd as {('C_dia_5316', 'ApP'): 28} for example ##
