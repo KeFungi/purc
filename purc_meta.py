@@ -4,7 +4,7 @@ logo = """
 -------------------------------------------------------------
 |                            PURC                           |
 |        Pipeline for Untangling Reticulate Complexes       |
-|                        version 1.02                       | 
+|                        version 2.0                        | 
 |           https://bitbucket.org/crothfels/purc            |
 |															|
 |                 Fay-Wei Li & Carl J Rothfels              |
@@ -101,7 +101,7 @@ def ReverseComplement(seq):
 	"""Returns reverse complement sequence, ignores gaps"""
 	seq = seq.replace(' ','') 
 	seq = seq[::-1] # Reverse the sequence
-	basecomplement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N', 'R': 'Y', 'Y':'R', 'M': 'K', 'K': 'M', 'S': 'S', 'W': 'W', 'H': 'D', 'D': 'H', 'B': 'V', 'V': 'B'} # Make a dictionary for complement
+	basecomplement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N', 'R': 'Y', 'Y':'R', 'M': 'K', 'K': 'M', 'S': 'S', 'W': 'W', 'H': 'D', 'D': 'H', 'B': 'V', 'V': 'B', 'I': 'N'} # Make a dictionary for complement
 	letters = list(seq) 
 	letters = [basecomplement[base] for base in letters] 
 	return ''.join(letters) 
@@ -129,6 +129,63 @@ def BlastSeq(inputfile, outputfile, databasefile, num_threads=1, evalue=0.000000
 	blastn_cLine = "blastn -query %s -task blastn -num_threads %s -db %s -out %s -evalue %s -max_target_seqs %d -outfmt '%s'" % (inputfile, num_threads, databasefile, outputfile, evalue, max_target, outfmt)
 	os.popen(blastn_cLine)	
 	return
+
+def CheckChimericLoci_byBC(inputfile_raw_sequences, outputfile_goodSeqs, outputfile_chimeras, barcode_seq_filename, SeqDict):
+	#usearch_cLine = "%s -search_local %s -db %s -strand both -target_cov 0.75 -evalue 0.01 -maxhits 8 -userout %s -userfields query+target+alnlen+id+bits+qlo+qhi -threads %d" % (Usearch, inputfile_raw_sequences, barcode_seq_filename, Output_folder+'/search_barcode_out_maxhit8.txt', num_threads)
+	#os.popen(usearch_cLine)	
+
+	search_result = open(Output_folder+'/search_barcode_out_maxhit8.txt', 'rU')
+	good_seq = open(outputfile_goodSeqs, 'w')
+	chimera_seq = open(outputfile_chimeras, 'w')
+
+	seq_barcode_dict = {}
+	for line in search_result:
+		line = line.strip('\n')
+		seq_name = line.split('\t')[0]
+		barcode_name = line.split('\t')[1]
+		barcode_start = int(line.split('\t')[5])
+		barcode_end = int(line.split('\t')[6])
+		try:
+			seq_barcode_dict[seq_name].append([barcode_name, barcode_start, barcode_end])
+		except:
+			seq_barcode_dict[seq_name] = [[barcode_name, barcode_start, barcode_end]]
+
+	chimera_seq_list = []
+	chimera_seq_split_list = []
+	for seq in seq_barcode_dict:
+		seq_barcode_dict[seq].sort(key=lambda x: x[1]) # sort by barcode_start
+		barcode_coordinate_list = seq_barcode_dict[seq]
+		if len(barcode_coordinate_list) == 4 and barcode_coordinate_list[0][2] < 100: # make sure the first barcode is at the beginning of the seq
+			if barcode_coordinate_list[0][0][2] != barcode_coordinate_list[1][0][2]: # F or R of the first two barcodes
+				if barcode_coordinate_list[1][1] - barcode_coordinate_list[0][2] <= 2000: # the distance between the barcodes can't be longer than 1500bp
+					new_seq = str(SeqDict[seq].seq)[:barcode_coordinate_list[1][2]]
+					good_seq.write('>'+seq+'_split1'+'\n'+new_seq+'\n')
+					chimera_seq_split_list.append(seq)	
+			if barcode_coordinate_list[2][0][2] != barcode_coordinate_list[3][0][2]: # F or R of the first two barcodes
+				if barcode_coordinate_list[3][1] - barcode_coordinate_list[2][2] <= 2000: # the distance between the barcodes can't be longer than 1500bp
+					new_seq = str(SeqDict[seq].seq)[barcode_coordinate_list[2][1]:]
+					good_seq.write('>'+seq+'_split2'+'\n'+new_seq+'\n')
+					chimera_seq_split_list.append(seq)	
+		
+		elif len(barcode_coordinate_list) == 3 and barcode_coordinate_list[0][2] < 100:
+			if barcode_coordinate_list[0][0][2] != barcode_coordinate_list[1][0][2]: # F or R of the first two barcodes
+				if barcode_coordinate_list[1][1] - barcode_coordinate_list[0][2] <= 2000: # the distance between the barcodes can't be longer than 1500bp
+					new_seq = str(SeqDict[seq].seq)[:barcode_coordinate_list[1][2]]
+					good_seq.write('>'+seq+'_split1'+'\n'+new_seq+'\n')
+					chimera_seq_split_list.append(seq)
+		
+		if len(barcode_coordinate_list) > 2:
+			chimera_seq.write('>'+seq+'\n'+str(SeqDict[seq].seq)+'\n')
+			chimera_seq_list.append(seq)
+		# else:
+		# 	good_seq.write('>' + str(seq) + '\n' + str(SeqDict[seq].seq) + '\n')
+			
+	good_seq_list = list(set(list(SeqDict.keys())) - set(chimera_seq_list))	
+	for seq in good_seq_list:
+		good_seq.write('>' + str(seq) + '\n' + str(SeqDict[seq].seq) + '\n')
+
+	return len(set(chimera_seq_split_list))
+
 
 def CheckChimericLoci(inputfile_raw_sequences, outputfile_blast, outputfile_goodSeqs, outputfile_chimeras, databasefile, SeqDict, SplitChimera=False):
 	"""Blasts each input sequence to the reference database to detect concatemers (i.e. a sequence that matches two different loci) 
@@ -276,6 +333,7 @@ def DeBarcoder(inputfile_raw_sequences, databasefile, SeqDict, Output_folder, Ou
 	
 	return 
 
+
 def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_range=25):
 	"""This function looks for barcodes at the ends of the sequence, only. So it avoids internal barcodes 
 	(helpful in part because some of our loci had regions that were similar to some primer sequences)
@@ -359,27 +417,40 @@ def DeBarcoder_ends(SeqDict, databasefile, Output_folder, Output_prefix, search_
 
 	os.remove('tempF')
 	os.remove('tempR')
-	bc_blast_F.close()
-	bc_blast_R.close()
-	bc_toomany.close()
-	bc_leftover.close()
-	bc_trimmed.close() #this is the file that now has all the sequences, labelled with the barcode, and the barcodes themselves removed
 
-def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
-	"""Blasts the raw sequences against the barcode blast database, identifies the barcode, adds the barcode ID to the 
+def DeBarcoder_dual(inputfile_raw_sequences, SeqDict, SearchOnlyEnds=True, search_range=50):
+	"""Search the raw sequences with barcodes, identifies the barcode, adds the barcode ID to the 
 	sequence name, removes the barcode from sequence; deal with barcodes at both primers.
-	Note that the range of acceptable bc starting point is hardcoded here, e.g. "if barcode_info_dict[each_seq][0][1] < 5" and "elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30".
-	"""
+	"""		
+	#BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=2, outfmt='6 qacc sacc length pident bitscore qstart qend')	
+	#bc_blast = open(Output_folder + '/blast_barcode_out.txt', 'rU') # Read the blast result
 	
-	BlastSeq(inputfile_raw_sequences, Output_folder + '/blast_barcode_out.txt', databasefile, num_threads=num_threads, evalue=1, max_target=2, outfmt='6 qacc sacc length pident bitscore qstart qend')
+	# Get sequences from two ends and concat them in "tempFR_barcode"
+	if SearchOnlyEnds:
+		FR_ends = open('tempFR_barcode', 'w')
+		for each_rec in sorted(SeqDict):
+			seq_to_search_F = str(SeqDict[each_rec].seq)[:search_range]
+			seq_to_search_R = str(SeqDict[each_rec].seq)[-search_range:]
+			FR_ends.write('>' + str(each_rec) + '\n' + seq_to_search_F + seq_to_search_R + '\n')
+		FR_ends.close()
+		
+		# Use usearch's search_local function to find barcodes; it works better than ublast and search_oligodb	
+		usearch_cLine = "%s -search_local %s -db %s -strand both -target_cov 0.5 -evalue 1 -maxhits 2 -userout %s -userfields query+target+alnlen+id+bits+qlo+qhi -threads %d" % (Usearch, 'tempFR_barcode', barcode_seq_filename, Output_folder+'/search_barcode_out.txt', num_threads)
+		os.popen(usearch_cLine)	
+	else:
+		usearch_cLine = "%s -search_local %s -db %s -strand both -target_cov 0.5 -evalue 1 -maxhits 2 -userout %s -userfields query+target+alnlen+id+bits+qlo+qhi -threads %d" % (Usearch, inputfile_raw_sequences, barcode_seq_filename, Output_folder+'/search_barcode_out.txt', num_threads)
+		os.popen(usearch_cLine)	
+
+	bc_search_hits = open(Output_folder + '/search_barcode_out.txt', 'rU') # Read the blast result	
 	
-	bc_blast = open(Output_folder + '/blast_barcode_out.txt', 'rU') # Read the blast result
 	bc_trimmed = open(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', 'w') # For writing the de-barcoded sequences
 	bc_leftover = open(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
 	bc_onlyF = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyF_bc.fa', 'w')
 	bc_onlyR = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyR_bc.fa', 'w')
-	bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
 	bc_invalid = open(Output_folder + '/' + Output_prefix + '_1_trashBin_invalid_bc.fa', 'w') # For saving those having FF or RR barcodes
+	if not SearchOnlyEnds:
+		#bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
+		bc_mid = open(Output_folder + '/' + Output_prefix + '_1_trashBin_midbc.fa', 'w') # For saving barcodes in the middle of seq
 
 	seq_withbc_list = [] # A list containing all the seq names that have barcodes
 	seq_withoutbc_list = [] # A list containing all the seq names that do not have barcode identified by BLAST
@@ -388,7 +459,7 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	barcode_info_dict = {} # {seq_name1: [(BCF01, 0, 12), (BCR02, 459, 511)], seq_name2: [(BC08, 0, 12)]}; barcode_info_dict[seq_name] = [(barcodeF_name, barcode_start_posi, barcode_end_posi), (barcodeR_name, barcode_start_posi, barcode_end_posi)]
 							# each seq has a list of tuples, each tuple contains the (barcode name, start, end)
 	# Go through the blast output file, and complete the barcode_info_dict, and seq_withbc_list
-	for each_rec in bc_blast:
+	for each_rec in bc_search_hits:
 		each_rec = each_rec.strip('\n')
 		seq_name = each_rec.split('\t')[0]
 		barcode_name = each_rec.split('\t')[1] # E.g. BC01, BC24...
@@ -403,20 +474,146 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	
 	# De-barcode and write sequences
 	for each_seq in set(seq_withbc_list):
+		# When more than three barcodes are present in seq; not relevant when forcing -maxhits 2
+		if len(barcode_info_dict[each_seq]) >= 3:
+			#bc_toomany.write('>' + str(each_seq) + '\n' + str(SeqDict[each_seq].seq) + '\n')
+			continue
+		# When only one barcode is present in seq
+		elif len(barcode_info_dict[each_seq]) == 1:	
+			new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+			# Check the orientation of the sequence; if the F barcode is in the 3' end or R in 5' end, reverse complement the seq		
+			if int(barcode_info_dict[each_seq][0][1]) <= search_range and barcode_info_dict[each_seq][0][0][2] == 'F': 
+				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:]) 
+			elif int(barcode_info_dict[each_seq][0][1]) <= search_range and barcode_info_dict[each_seq][0][0][2] == 'R': 
+				new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:])) 
+			elif int(barcode_info_dict[each_seq][0][1]) >= search_range and barcode_info_dict[each_seq][0][0][2] == 'R': 
+				if SearchOnlyEnds:
+					new_seq_trimmed = str(SeqDict[each_seq].seq[:len(str(SeqDict[each_seq].seq))-search_range*2+barcode_info_dict[each_seq][0][1]-1])
+				else:
+					new_seq_trimmed = str(SeqDict[each_seq].seq[:barcode_info_dict[each_seq][0][1]-1])
+			elif int(barcode_info_dict[each_seq][0][1]) >= search_range and barcode_info_dict[each_seq][0][0][2] == 'F': 
+				if SearchOnlyEnds:			
+					new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[:len(str(SeqDict[each_seq].seq))-search_range*2+barcode_info_dict[each_seq][0][1]-1]))
+				else:
+					new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[:barcode_info_dict[each_seq][0][1]-1]))
+			else: # Those barcodes that are at the middle of the sequences; not relevant when only two ends are searched
+				if not SearchOnlyEnds:
+					new_seq_name = new_seq_name + "ERRmidBC"
+					bc_mid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+			# Check where barcode is located, on F or R primer
+			if barcode_info_dict[each_seq][0][0][2] == 'F':
+				bc_onlyF.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+			elif barcode_info_dict[each_seq][0][0][2] == 'R':
+				bc_onlyR.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')			
+		
+		# When both barcodes are present in seq
+		elif len(barcode_info_dict[each_seq]) == 2:		
+			# Check if barcodes are in the same category (F, R); don't want these 
+			if barcode_info_dict[each_seq][0][0][2] == barcode_info_dict[each_seq][1][0][2]:
+				new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+				bc_invalid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+				continue 
+			if SearchOnlyEnds:
+				# Check if the two barcodes are on the same side; don't want these 
+				if int(barcode_info_dict[each_seq][0][1]) <= search_range and int(barcode_info_dict[each_seq][1][1]) <= search_range: 
+					new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + 'same_side' + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+					bc_invalid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+					continue 
+				# Check if the two barcodes are on the same side; don't want these 
+				if int(barcode_info_dict[each_seq][0][1]) >= search_range and int(barcode_info_dict[each_seq][1][1]) >= search_range: 
+					new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + 'same_side' + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+					bc_invalid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+					continue 
+
+			# Re-order the list, so that the F barcode tuple is at the first position in the list
+			if barcode_info_dict[each_seq][0][0][2] == 'R':
+				barcode_info_dict[each_seq] = barcode_info_dict[each_seq][::-1]
+			
+			new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BCF01^BCR02|sequence_name
+			# Trim the barcodes 
+			# BCF - F primer - Seq - R primer - BCR
+			if SearchOnlyEnds:
+				if int(barcode_info_dict[each_seq][0][1]) <= search_range: 
+					new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:len(str(SeqDict[each_seq].seq))-search_range*2+barcode_info_dict[each_seq][1][1]-1]) 
+					bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+				# BCR - R primer - Seq - F primer - BCF
+				elif int(barcode_info_dict[each_seq][0][1]) >= search_range: # When the seq is reverse complemented
+					new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][1][2]:len(str(SeqDict[each_seq].seq))-search_range*2+barcode_info_dict[each_seq][0][1]-1]) 
+					new_seq_trimmed = ReverseComplement(new_seq_trimmed)		
+					bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+			else:
+				# BCF - F primer - Seq - R primer - BCR
+				if barcode_info_dict[each_seq][0][1] < 5: 
+					new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:barcode_info_dict[each_seq][1][1]-1]) 
+					bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+				# BCR - R primer - Seq - F primer - BCF
+				elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30: # When the seq is reverse complemented
+					new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][1][2]:barcode_info_dict[each_seq][0][1]-1]) 
+					new_seq_trimmed = ReverseComplement(new_seq_trimmed)		
+					bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+				else:
+					new_seq_name = new_seq_name + "ERRmidBC"
+					bc_mid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+
+	# Save those without barcode
+	seq_withoutbc_list = list(set(list(SeqDict.keys())) - set(seq_withbc_list))	
+	for seq_withoutbc in seq_withoutbc_list:
+		bc_leftover.write('>' + str(seq_withoutbc) + '\n' + str(SeqDict[seq_withoutbc].seq) + '\n')
+	
+	if SearchOnlyEnds:
+		os.remove('tempFR_barcode')
+
+def DeBarcodePrimer_dual(inputfile_raw_sequences, barcode_primer_fasta, SeqDict, Output_folder, Output_prefix):
+	"""Use the whole barcoded primer sequences to demultiplex, not very sensitive - don't use"""
+	
+	usearch_cLine = "usearch -search_local %s -db %s -strand both -evalue 1 -maxhits 2 -userout %s -userfields query+target+qlo+qhi+tlo+thi+alnlen+evalue+qstrand -threads %d" % (inputfile_raw_sequences, barcode_primer_fasta, Output_folder+'/barcode_primer_hits.txt', num_threads)
+	os.popen(usearch_cLine)	
+	
+	bc_hits = open(Output_folder + '/barcode_primer_hits.txt', 'rU') # Read the blast result
+	bc_trimmed = open(Output_folder + '/' + Output_prefix + '_1_bc_primer_trimmed.fa', 'w') # For writing the de-barcoded sequences
+	bc_leftover = open(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa', 'w') # For saving those without barcodes
+	bc_onlyF = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyF_bc.fa', 'w')
+	bc_onlyR = open(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyR_bc.fa', 'w')
+	bc_toomany = open(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa', 'w') # For saving those more than one barcode
+	bc_invalid = open(Output_folder + '/' + Output_prefix + '_1_trashBin_invalid_bc.fa', 'w') # For saving those having FF or RR barcodes
+
+	seq_withbc_list = [] # A list containing all the seq names that have barcodes
+	seq_withoutbc_list = [] # A list containing all the seq names that do not have barcode identified by BLAST
+	seq_onlyF_list = []
+	seq_onlyR_list = []
+	barcode_info_dict = {} # {seq_name1: [(BCF01, 0, 12), (BCR02, 459, 511)], seq_name2: [(BC08, 0, 12)]}; barcode_info_dict[seq_name] = [(barcodeF_name, barcode_start_posi, barcode_end_posi), (barcodeR_name, barcode_start_posi, barcode_end_posi)]
+							# each seq has a list of tuples, each tuple contains the (barcode name, start, end)
+	# Go through the blast output file, and complete the barcode_info_dict, and seq_withbc_list
+	for each_rec in bc_hits:
+		each_rec = each_rec.strip('\n')
+		seq_name = each_rec.split('\t')[0]
+		barcode_name = each_rec.split('\t')[1].split('|')[0] # E.g. BC01, BC24...
+		locus_name = each_rec.split('\t')[1].split('|')[1]
+		barcode_start_posi = int(each_rec.split('\t')[2])
+		barcode_end_posi = int(each_rec.split('\t')[3])		
+		seq_withbc_list.append(seq_name)
+		# {seq_name1: [(BCF01, rbcLX, 0, 12), (BCR02, rbcLX, 459, 511)], seq_name2: [(BC08, AMF, 0, 12)]}
+		try:
+			barcode_info_dict[seq_name].append((barcode_name, locus_name, barcode_start_posi, barcode_end_posi))
+		except:
+			barcode_info_dict[seq_name] = [(barcode_name, locus_name, barcode_start_posi, barcode_end_posi)]
+	
+	# De-barcode and write sequences
+	for each_seq in set(seq_withbc_list):
 		# When more than three barcodes are present in seq
 		if len(barcode_info_dict[each_seq]) >= 3:
 			bc_toomany.write('>' + str(each_seq) + '\n' + str(SeqDict[each_seq].seq) + '\n')
 			continue
 		# When only one barcode is present in seq
 		elif len(barcode_info_dict[each_seq]) == 1:	
-			new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+			new_seq_name = str(barcode_info_dict[each_seq][0][1]) + '|' + str(barcode_info_dict[each_seq][0][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 			# Check the orientation of the sequence; if the barcode is in the 3' end, reverse complement the seq		
-			if barcode_info_dict[each_seq][0][1] < 5: # The start position _should_ be 1, but this allows for some slop
-				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:]) # "barcode_end_posi" to the end of the sequence
-			elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30: # Those barcodes that are at the end of the sequences, so need to be reversecomplemented
-				new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[:barcode_info_dict[each_seq][0][1]-1])) # the beginning of the sequence to "barcode_start_posi" - 1
+			if barcode_info_dict[each_seq][0][2] < 5: # The start position _should_ be 1, but this allows for some slop
+				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][3]:]) # "barcode_end_posi" to the end of the sequence
+			elif barcode_info_dict[each_seq][0][2] > len(str(SeqDict[each_seq].seq))-30: # Those barcodes that are at the end of the sequences, so need to be reversecomplemented
+				new_seq_trimmed = ReverseComplement(str(SeqDict[each_seq].seq[:barcode_info_dict[each_seq][0][2]-1])) # the beginning of the sequence to "barcode_start_posi" - 1
 			else: # Those barcodes that are at the middle of the sequences
-				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:])
+				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][3]:])
 				new_seq_name = new_seq_name + "ERRmidBC"
 			# Check where barcode is located, on F or R primer
 			if barcode_info_dict[each_seq][0][0][2] == 'F':
@@ -427,24 +624,29 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 		elif len(barcode_info_dict[each_seq]) == 2:		
 			# Check if barcodes are in the same category (F, R); don't want these 
 			if barcode_info_dict[each_seq][0][0][2] == barcode_info_dict[each_seq][1][0][2]:
-				new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+				new_seq_name = str(barcode_info_dict[each_seq][0][1]) + '|' + str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
 				bc_invalid.write('>' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
 				continue 
+			# Check if both primers come from the same locus
+			if barcode_info_dict[each_seq][0][1] != barcode_info_dict[each_seq][1][1]:
+				new_seq_name = str(barcode_info_dict[each_seq][0][1]) + str(barcode_info_dict[each_seq][0][2]) + '|' + str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BC01|sequence_name
+				bc_invalid.write('>*' + new_seq_name + '\n' + str(SeqDict[each_seq].seq) + '\n')
+				continue
 
 			# Re-order the list, so that the F barcode tuple is at the first position in the list
 			if barcode_info_dict[each_seq][0][0][2] == 'R':
 				barcode_info_dict[each_seq] = barcode_info_dict[each_seq][::-1]
 			
-			new_seq_name = str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BCF01|BCR02|sequence_name
+			new_seq_name = str(barcode_info_dict[each_seq][0][1]) + '|' + str(barcode_info_dict[each_seq][0][0]) + '^' + str(barcode_info_dict[each_seq][1][0]) + '|' + str(each_seq) # Add the barcode ID to the sequence name: BCF01|BCR02|sequence_name
 
 			# Trim the barcodes 
 			# BCF - F primer - Seq - R primer - BCR
-			if barcode_info_dict[each_seq][0][1] < 5: 
-				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][2]:barcode_info_dict[each_seq][1][1]-1]) 
+			if int(barcode_info_dict[each_seq][0][2]) <= 5: 
+				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][0][3]:barcode_info_dict[each_seq][1][2]-1]) 
 				bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
 			# BCR - R primer - Seq - F primer - BCF
-			elif barcode_info_dict[each_seq][0][1] > len(str(SeqDict[each_seq].seq))-30: # When the seq is reverse complemented
-				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][1][2]:barcode_info_dict[each_seq][0][1]-1]) 
+			elif int(barcode_info_dict[each_seq][0][2]) >= len(str(SeqDict[each_seq].seq))-30: # When the seq is reverse complemented
+				new_seq_trimmed = str(SeqDict[each_seq].seq[barcode_info_dict[each_seq][1][3]:barcode_info_dict[each_seq][0][2]-1]) 
 				new_seq_trimmed = ReverseComplement(new_seq_trimmed)		
 				bc_trimmed.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
 			else:
@@ -456,7 +658,7 @@ def DeBarcoder_dual(inputfile_raw_sequences, databasefile, SeqDict):
 	for seq_withoutbc in seq_withoutbc_list:
 		bc_leftover.write('>' + str(seq_withoutbc) + '\n' + str(SeqDict[seq_withoutbc].seq) + '\n')
 
-	bc_blast.close()
+	bc_hits.close()
 	bc_trimmed.close()
 	bc_leftover.close()
 	bc_onlyF.close()
@@ -538,6 +740,91 @@ def doCutAdapt(Fprims, Rprims, InFile, OutFile, minimum_len=50):
 	if verbose_level in [1, 2]:
 		log.write('**Primer-trimming results**\n')
 		log.write(str(err))
+
+def LocusAssigner(inputfile, primer_fasta, DualBC_flag=True, search_range=25):
+	""" Search primer, assign each seq to locus and sample, remove the primer seq """
+
+	dictOfMapDicts = {} # A dictionary to store all of the map dictionaries
+	for each_file, each_locus in zip(mapping_file_list, locus_list): 
+		dictOfMapDicts[each_locus.upper()] = makeMapDict(each_file, each_locus, False, DualBC_flag) # Note the Multiplex_perBC and DualBC flags (as True/False)
+	
+	SeqDict = SeqIO.index(inputfile, 'fasta') 
+
+	# Get sequences from two ends and concat them in "tempFR_barcode"
+	FR_ends = open('tempFR_primer', 'w')
+	for each_rec in sorted(SeqDict):
+		seq_to_search_F = str(SeqDict[each_rec].seq)[:search_range]
+		seq_to_search_R = str(SeqDict[each_rec].seq)[-search_range:]
+		FR_ends.write('>' + str(each_rec) + '\n' + seq_to_search_F + seq_to_search_R + '\n')
+	FR_ends.close()
+	
+	usearch_cLine = "%s -search_local %s -db %s -strand both -evalue 1e-1 -maxhits 2 -userout %s -userfields query+target+qlo+qhi+tlo+thi+alnlen+evalue+qstrand -threads %d" % (Usearch, 'tempFR_primer', primer_fasta, Output_folder+'/search_primer_out.txt', num_threads)
+	os.popen(usearch_cLine)	
+	
+	primer_hits = open(Output_folder + '/search_primer_out.txt', 'rU') # Read the blast result
+	locus_assigned = open(Output_folder + '/' + Output_prefix + '_2_annotated.fa', 'w') # For writing the de-barcoded sequences
+	locus_not_assigned = open(Output_folder + '/' + Output_prefix + '_2_locus_assigned_failed.fa', 'w') # For writing the de-barcoded sequences
+	unclassifiable = open(Output_folder + '/' + Output_prefix + '_2_bc_conflict.fa', 'w') # For writing the de-barcoded sequences
+
+	seq_locus_assigned_list = []
+	primer_info_dict = {} 
+	LocusTaxonCountDict = {}
+
+	# Go through the usearch output file, and complete the primer_info_dict, and seq_locus_assigned_list
+	for each_rec in primer_hits:
+		each_rec = each_rec.strip('\n')
+		seq_name = each_rec.split('\t')[0]
+		primer_name = each_rec.split('\t')[1].split('|')[0] # e.g. seq name in primer fasta has to be like: cw|rbcLX; here cw is grabbed
+		locus_name = each_rec.split('\t')[1].split('|')[1].upper() # e.g. seq name in primer fasta has to be like: cw|rbcLX; here RBCLX is grabbed
+		primer_start_posi = int(each_rec.split('\t')[2])
+		primer_end_posi = int(each_rec.split('\t')[3])		
+		seq_locus_assigned_list.append(seq_name)
+		#primer_info_dict[seq_name] = locus_name
+		try:
+			primer_info_dict[seq_name].append((locus_name, primer_start_posi, primer_end_posi))
+		except:
+			primer_info_dict[seq_name] = [(locus_name, primer_start_posi, primer_end_posi)]
+	
+	# Annotate and write sequences
+	for each_seq in set(seq_locus_assigned_list):
+		locus_name = primer_info_dict[each_seq][0][0]
+		try: # Use try/except to avoid the error when the key is not present in MapDict				
+			key = str(each_seq).split('|')[0] # e.g. BCF1^BCR2
+			taxon_name = dictOfMapDicts[locus_name][key] 
+			new_seq_name = taxon_name + '|' + locus_name + '|' + str(each_seq) # Add the taxon name and locus name to the sequence name: Apunctatus|RBCLX|BCF1^BCR4|sequence_name
+			try:
+				LocusTaxonCountDict[taxon_name, locus_name] += 1 #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
+			except:
+				LocusTaxonCountDict[taxon_name, locus_name] = 1
+		except: # This barcode combination isn't found in the dict
+			new_seq_name = locus_name + '|' + str(each_seq)
+			unclassifiable.write('>' + new_seq_name + '\n' + str(SeqDict[seq_name].seq) + '\n')
+			continue
+
+		if int(primer_info_dict[each_seq][0][1]) <= search_range: 
+			new_seq_trimmed = str(SeqDict[each_seq].seq)[primer_info_dict[each_seq][0][2]:]
+		if int(primer_info_dict[each_seq][0][1]) >= search_range: 
+			new_seq_trimmed = str(SeqDict[each_seq].seq)[:len(str(SeqDict[each_seq].seq))-search_range*2+primer_info_dict[each_seq][0][1]-1]
+		try: # if second primer is found
+			if int(primer_info_dict[each_seq][1][1]) <= search_range: 
+				new_seq_trimmed = new_seq_trimmed[primer_info_dict[each_seq][1][2]:]
+		except:
+			pass
+		try:
+			if int(primer_info_dict[each_seq][1][1]) >= search_range: 
+				new_seq_trimmed = new_seq_trimmed[:len(new_seq_trimmed)-search_range*2+primer_info_dict[each_seq][1][1]-1]
+		except:
+			pass
+
+		locus_assigned.write('>' + new_seq_name + '\n' + new_seq_trimmed + '\n')
+
+	# Save those that no primer can be found
+	seq_locus_not_assigned_list = list(set(list(SeqDict.keys())) - set(seq_locus_assigned_list))	
+	for seq_withoutbc in seq_locus_not_assigned_list:
+		locus_not_assigned.write('>' + str(seq_withoutbc) + '\n' + str(SeqDict[seq_withoutbc].seq) + '\n')
+
+	os.remove('tempFR_primer')
+	return LocusTaxonCountDict #as {('C_mem_6732', 'PGI'): 2, ('C_mem_6732', 'IBR'): 4} for example
 
 def SplitBy(annotd_seqs_file, split_by = "locus-taxon", Multiplex_perBC_flag=True): 
 	"""Uses the annotated sequences to split sequences into different files based on splits_list 
@@ -908,8 +1195,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 				## Collect all sequences from each cluster and re-consensus ##
 				# Go through the first clustering uc file
 				ClusterToSeq_dict1 = {}
-				file_to_read = open(outClustFile1, 'rU')
-				for line in file_to_read:	
+				for line in open(outClustFile1, 'rU'):	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -918,12 +1204,10 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 							ClusterToSeq_dict1[key].append(seq)
 						except:
 							ClusterToSeq_dict1[key] = [seq]
-				file_to_read.close()
 
 				# Go through the second clustering uc file
 				ClusterToSeq_dict2 = {}
-				file_to_read = open(outClustFile2, 'rU')
-				for line in file_to_read:	
+				for line in open(outClustFile2, 'rU'):	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -933,12 +1217,10 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict2[key].append(seq)
 							except:
 								ClusterToSeq_dict2[key] = [seq]
-				file_to_read.close()
 
 				# Go through the third clustering uc file
 				ClusterToSeq_dict3 = {}
-				file_to_read = open(outClustFile3, 'rU')				
-				for line in file_to_read:	
+				for line in open(outClustFile3, 'rU'):	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -948,12 +1230,10 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict3[key].append(seq)
 							except:
 								ClusterToSeq_dict3[key] = [seq]
-				file_to_read.close()
 
 				# Go through the forth clustering uc file
 				ClusterToSeq_dict4 = {}
-				file_to_read = open(outClustFile4, 'rU')				
-				for line in file_to_read:	
+				for line in open(outClustFile4, 'rU'):	
 					line = line.strip('\n')
 					if line.startswith('H') or line.startswith('C'):
 						key = 'Cluster' + line.split('\t')[1]
@@ -963,8 +1243,7 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 								ClusterToSeq_dict4[key].append(seq)
 							except:
 								ClusterToSeq_dict4[key] = [seq]
-				file_to_read.close()
-
+				
 				## Align and re-consensus of all constituent seq for each cluster ##
 				SeqDict = SeqIO.index(taxon_folder + ".fa", 'fasta')
 				for each_cluster in ClusterToSeq_dict4:
@@ -1003,7 +1282,6 @@ def IterativeClusterDechimera(annotd_seqs_file, clustID, clustID2, clustID3, siz
 					line = line.strip('\n')
 					if line.split('\t')[-1] == 'Y':
 						chimera_count5 = chimera_count5 + 1
-				uchime_out.close()
 				LocusTaxonCountDict_chimera[taxon_folder, locus_folder] = [chimera_count1, chimera_count2, chimera_count3, chimera_count4, chimera_count5] # {('C_dia_5316', 'ApP'): [1,0,0,0,0]} for example
 
 				## Count clustered seq and store in LocusTaxonCountDict_clustd as {('C_dia_5316', 'ApP'): 28} for example ##
@@ -1526,7 +1804,7 @@ else:
 	Check_chimeras = False
 	Multiplex_per_barcode = False
 	Dual_barcode = False
-	Search_ends_only = True
+	Search_ends_only_flag = True
 	Recycle_bc = False
 	Align = 0
 	clustID = 0.997
@@ -1538,11 +1816,11 @@ else:
 	abskew = 1.9
 	verbose_level = 0
 	num_threads = 1
-	barcode_databasefile = 'barcode_blastdb'
-	refseq_databasefile = 'refseq_blastdb'
+	# barcode_databasefile = 'barcode_blastdb'
+	# refseq_databasefile = 'refseq_blastdb'
 	seq_name_toErase = ''
 	Usearch = ppp_location + '/' + 'Dependencies/usearch8.1.1756'
-	Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt_source/bin/cutadapt'
+	#Cutadapt = ppp_location + '/' + 'Dependencies/cutadapt_source/bin/cutadapt'
 	Muscle = ppp_location + '/' + 'Dependencies/muscle3.8.31'
 	log_file = 'purc_log_' + time_stamp + '.txt'
 
@@ -1566,11 +1844,11 @@ else:
 				Output_prefix = setting_argument
 			elif setting_name == 'Output_folder':
 				Output_folder = setting_argument
-				BLAST_DBs_folder = Output_folder + '_BlastDBs'
-			elif setting_name == 'Barcode_blastDB':
-				barcode_databasefile = setting_argument		
-			elif setting_name == 'RefSeq_blastDB':
-				refseq_databasefile = setting_argument
+			#	BLAST_DBs_folder = Output_folder + '_BlastDBs'
+			# elif setting_name == 'Barcode_blastDB':
+			# 	barcode_databasefile = setting_argument		
+			# elif setting_name == 'RefSeq_blastDB':
+			# 	refseq_databasefile = setting_argument
 			elif setting_name == 'Log_file':
 				if setting_argument == '':
 					log_file = 'purc_log_' + time_stamp + '.txt'
@@ -1588,11 +1866,11 @@ else:
 					Usearch = ppp_location + '/' + setting_argument
 				else:
 					Usearch = setting_argument
-			elif setting_name == 'Cutadapt':
-				if setting_argument.startswith('Dependencies/'):
-					Cutadapt = ppp_location + '/' + setting_argument
-				else:
-					Cutadapt = setting_argument
+			# elif setting_name == 'Cutadapt':
+			# 	if setting_argument.startswith('Dependencies/'):
+			# 		Cutadapt = ppp_location + '/' + setting_argument
+			# 	else:
+			# 		Cutadapt = setting_argument
 			elif setting_name == 'Muscle':
 				if setting_argument.startswith('Dependencies/'):
 					Muscle = ppp_location + '/' + setting_argument
@@ -1611,11 +1889,11 @@ else:
 			elif setting_name == 'sizeThreshold2':
 				sizeThreshold2 = float(setting_argument)	
 			elif setting_name == 'abundance_skew':
-				abskew = str(setting_argument)		
-			elif setting_name == 'Forward_primer':
-				Forward_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')
-			elif setting_name == 'Reverse_primer':
-				Reverse_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')					
+				abskew = str(setting_argument)					
+			# elif setting_name == 'Forward_primer':
+			# 	Forward_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')
+			# elif setting_name == 'Reverse_primer':
+			# 	Reverse_primer = setting_argument.replace(' ', '').replace('\t', '').split(',')					
 			elif setting_name == 'seq_name_toErase':
 				seq_name_toErase = setting_argument
 			elif setting_name == 'Verbose_level':
@@ -1628,10 +1906,14 @@ else:
 				barcode_seq_filename = setting_argument
 				if not os.path.isfile(barcode_seq_filename):
 					sys.exit("Error: could not find " + barcode_seq_filename)
-			elif setting_name == 'in_RefSeq_seq_file':	
-				refseq_filename = setting_argument
-				if not os.path.isfile(refseq_filename):
-					sys.exit("Error: could not find " + refseq_filename)				
+			elif setting_name == 'in_Primer_seq_file':	
+				primer_seq_filename = setting_argument
+				if not os.path.isfile(primer_seq_filename):
+					sys.exit("Error: could not find " + primer_seq_filename)
+			# elif setting_name == 'in_RefSeq_seq_file':	
+			# 	refseq_filename = setting_argument
+			# 	if not os.path.isfile(refseq_filename):
+			# 		sys.exit("Error: could not find " + refseq_filename)				
 			elif setting_name == 'Dual_barcode':
 				if setting_argument == '0':
 					Dual_barcode = False
@@ -1648,9 +1930,9 @@ else:
 					sys.exit('Error: incorrect setting of Multiplex_per_barcode')	
 			elif setting_name == 'Barcode_detection':
 				if setting_argument == '0':
-					Search_ends_only = False
+					Search_ends_only_flag = False
 				elif setting_argument == '1':
-					Search_ends_only = True
+					Search_ends_only_flag = True
 				else:
 					sys.exit('Error: incorrect setting of Barcode_detection')						
 			elif setting_name == 'Recycle_no_barcoded_seq':
@@ -1685,13 +1967,13 @@ else:
 		sys.exit("Error: could not execute Usearch")
 
 	# Check if cutadapt can be executed
-	cutadapt_cline = '%s --help' % (Cutadapt)
-	process = subprocess.Popen(cutadapt_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
-	(out, err) = process.communicate() #the stdout and stderr
-	#print out
-	if not str(out).startswith('cutadapt'):
-		if not str(out).startswith('Usage'): #for older cutadapt version
-			sys.exit("Error: could not execute Cutadapt")
+	# cutadapt_cline = '%s --help' % (Cutadapt)
+	# process = subprocess.Popen(cutadapt_cline, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)	
+	# (out, err) = process.communicate() #the stdout and stderr
+	# #print out
+	# if not str(out).startswith('cutadapt'):
+	# 	if not str(out).startswith('Usage'): #for older cutadapt version
+	# 		sys.exit("Error: could not execute Cutadapt")
 
 	# Check if blast can be execuated
 	blast_cline = 'blastn -version'
@@ -1705,12 +1987,12 @@ else:
 	log.write(logo + '\n')
 	log.write("PURC called with: \n\t" + str(sys.argv) + "\n") 
 	log.write('Usearch location: ' + str(Usearch) + '\n')
-	log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
+	# log.write('Cutadapt location: ' + str(Cutadapt) + '\n')
 	log.write('Muscle location: ' + str(Muscle) + '\n')
 	log.write("Settings for this run:\n" + "\tSequence file:\t" + str(raw_sequences) + "\n\tLoci:\t" + '\t'.join(locus_list) + '\n')
 	log.write("\tMapping files: " + ', '.join(mapping_file_list) + '\n')
-	log.write("\tForward primers: " + ', '.join(Forward_primer) + '\n')
-	log.write("\tReverse primers: " + ', '.join(Reverse_primer) + '\n')
+	# log.write("\tForward primers: " + ', '.join(Forward_primer) + '\n')
+	# log.write("\tReverse primers: " + ', '.join(Reverse_primer) + '\n')
 
 	if Dual_barcode:
 		log.write("\tExpecting barcodes at each end of the sequence\n")
@@ -1720,7 +2002,7 @@ else:
 		log.write("\tExpecting barcodes to be shared across multiple taxa (genera, etc)\n")
 	else:
 		log.write("\tExpecting each barcode to be used for only a single taxon\n")
-	if Search_ends_only:
+	if Search_ends_only_flag:
 		log.write("\tBarcodes will be looked for in the terminal 25 bases of each sequence, only\n")
 	else:
 		log.write("\tThe full sequence will be searched for primers; internal primers may be found\n")
@@ -1751,16 +2033,16 @@ try:
 except:
 	sys.exit('ERROR: failed to rename ' + raw_sequences)
 
-if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
-	shutil.rmtree(BLAST_DBs_folder)
-os.makedirs(BLAST_DBs_folder)
-os.chdir(BLAST_DBs_folder)
-try:
-	makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
-	makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
-except:
-	sys.exit('ERROR: failed to make blast database')
-os.chdir('..')
+# if os.path.exists(BLAST_DBs_folder): # overwrite existing folder
+# 	shutil.rmtree(BLAST_DBs_folder)
+# os.makedirs(BLAST_DBs_folder)
+# os.chdir(BLAST_DBs_folder)
+# try:
+# 	makeBlastDB(refseq_filename, refseq_databasefile) # and one of the reference sequences
+# 	makeBlastDB(barcode_seq_filename, barcode_databasefile) # one of the barcodes
+# except:
+# 	sys.exit('ERROR: failed to make blast database')
+# os.chdir('..')
 
 ## Read sequences ##
 sys.stderr.write('Reading sequences...\n')
@@ -1772,28 +2054,32 @@ count_total_input_sequences = len(SeqDict)
 sys.stderr.write('\t' + str(count_total_input_sequences) + ' sequences read\n')
 
 ## Make output folder ##
-if os.path.exists(Output_folder): # overwrite existing folder
-	shutil.rmtree(Output_folder)
-os.makedirs(Output_folder)
+# if os.path.exists(Output_folder): # overwrite existing folder
+# 	shutil.rmtree(Output_folder)
+# os.makedirs(Output_folder)
 
 if mode == 0: # QC mode
 	## Check chimeras ##
 	log.write('\n#Concatemers Removal#\n')
 	sys.stderr.write('Checking for inter-locus chimeric sequences (concatemers)...\n')
-	if not Recycle_chimera:
-		chimeras_file = Output_prefix + '_0_chimeras.fa'
-		non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
-		chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=False)
-	else:
-		chimeras_file = Output_prefix + '_0_chimeras.fa'
-		non_chimeras_file = Output_prefix + '_0_nonchimeras+split.fa'
-		chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=True)
+	split_count = CheckChimericLoci_byBC(raw_sequences, Output_folder+'/'+Output_prefix+'_0_nonchimeras.fa', Output_folder+'/'+Output_prefix+'_0_chimeras.fa', barcode_seq_filename, SeqDict)
+
+	# if not Recycle_chimera:
+	# 	chimeras_file = Output_prefix + '_0_chimeras.fa'
+	# 	non_chimeras_file = Output_prefix + '_0_nonchimeras.fa'
+	# 	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=False)
+	# else:
+	# 	chimeras_file = Output_prefix + '_0_chimeras.fa'
+	# 	non_chimeras_file = Output_prefix + '_0_nonchimeras+split.fa'
+	# 	chimera_dict = CheckChimericLoci(raw_sequences, Output_folder + '/' + 'blast_full_refseq_out.txt', Output_folder + '/' + non_chimeras_file, Output_folder + '/' + chimeras_file, BLAST_DBs_folder + '/' + refseq_databasefile, SeqDict, SplitChimera=True)
+	# count_chimeric_sequences = len(chimera_dict)
 	
-	count_chimeric_sequences = len(chimera_dict)
-	raw_sequences = Output_folder + '/' + non_chimeras_file
+	raw_sequences = Output_folder + '/' + Output_prefix+'_0_nonchimeras.fa'
 	SeqDict = SeqIO.index(raw_sequences, 'fasta')
-	sys.stderr.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
-	log.write('\t' + str(count_chimeric_sequences) + ' inter-locus chimeric sequences found\n')
+	sys.stderr.write('\t' + str(count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_0_chimeras.fa')) + ' inter-locus chimeric sequences found\n')
+	log.write('\t' + str(count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_0_chimeras.fa')) + ' inter-locus chimeric sequences found\n')
+	sys.stderr.write('\t' + str(split_count) + ' chimeric sequences successfully dechimerized\n')
+	log.write('\t' + str(split_count) + ' chimeric sequences successfully dechimerized\n')
 	if not check_fasta(raw_sequences):
 		sys.exit('Error: concatemers-removal returned no sequence')
 
@@ -1801,19 +2087,35 @@ if mode == 0: # QC mode
 log.write('\n#Barcode Removal#\n')
 if Dual_barcode:
 	sys.stderr.write('Removing dual barcodes...\n')
-	DeBarcoder_dual(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict)
+	DeBarcoder_dual(raw_sequences, SeqDict, SearchOnlyEnds=Search_ends_only_flag)
+	#DeBarcodePrimer_dual(raw_sequences, barcode_seq_filename, SeqDict, Output_folder, Output_prefix)
+
 else:
 	sys.stderr.write('Removing barcodes...\n')
-	if not Search_ends_only:
+	if not Search_ends_only_flag:
 		DeBarcoder(raw_sequences, BLAST_DBs_folder + '/' + barcode_databasefile, SeqDict, Output_folder, Output_prefix)
 	else:
 		DeBarcoder_ends(SeqDict, BLAST_DBs_folder + '/' + barcode_databasefile, Output_folder, Output_prefix, search_range=25)
 count_seq_w_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa')
 count_seq_wo_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_no_bc.fa')
-count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa')
-sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have barcode\n')
+#count_seq_w_toomany_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_tooMany_bc.fa')
+if Dual_barcode:
+	count_seq_w_onlyF_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyF_bc.fa')
+	count_seq_w_onlyR_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_onlyR_bc.fa')
+	count_seq_w_invalid_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_invalid_bc.fa')
+	if not Search_ends_only_flag:
+		count_seq_w_mid_bc = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_1_trashBin_midbc.fa')
+
+sys.stderr.write('\t' + str(count_seq_w_bc) + ' sequences have correct barcode\n')
 sys.stderr.write('\t' + str(count_seq_wo_bc) + ' sequences have no barcode\n')
-sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+#sys.stderr.write('\t' + str(count_seq_w_toomany_bc) + ' sequences have too many barcodes\n')
+if Dual_barcode:
+	sys.stderr.write('\t' + str(count_seq_w_onlyF_bc) + ' sequences have only F barcode\n')
+	sys.stderr.write('\t' + str(count_seq_w_onlyR_bc) + ' sequences have only R barcode\n')
+	sys.stderr.write('\t' + str(count_seq_w_invalid_bc) + ' sequences have invalid F-F or R-R barcode\n')
+	if not Search_ends_only_flag:
+		sys.stderr.write('\t' + str(count_seq_w_mid_bc) + ' sequences have barcode in the middle of sequence\n')
+
 if count_seq_w_bc == str(0):
 	sys.exit('Error: barcode-removal returned no sequence')
 
@@ -1824,67 +2126,92 @@ if Recycle_bc:
 	sys.stderr.write('\t' + str(count_seq_recycled) + ' sequences recycled from ' + str(count_seq_wo_bc) + ' sequences\n')
 log.write('\t...done\n\n')
 
-## Remove primers ##
+## Assign locus and remove primters ##
 log.write('#Primer Removal#\n')
 sys.stderr.write('Removing primers...\n')
-primer_trimmed_file = Output_prefix + '_2_pr_trimmed.fa'
-doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', OutFile = Output_folder + '/' + primer_trimmed_file)
-count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_pr_trimmed.fa')
-sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
-log.write('\t...done\n\n')
-if count_seq_pr_trimmed == str(0):
-	sys.exit('Error: primer-removal returned no sequence')
+LocusTaxonCountDict_unclustd = LocusAssigner(Output_folder + '/' + Output_prefix + '_1_bc_trimmed.fa', primer_seq_filename, DualBC_flag = Dual_barcode)
+
+## Remove primers ##
+# log.write('#Primer Removal#\n')
+# sys.stderr.write('Removing primers...\n')
+# primer_trimmed_file = Output_prefix + '_3_pr_trimmed.fa'
+# doCutAdapt(Fprims = Forward_primer, Rprims = Reverse_primer, InFile = Output_folder + '/' + Output_prefix + '_2_annotated.fa', OutFile = Output_folder + '/' + primer_trimmed_file)
+# count_seq_pr_trimmed = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_pr_trimmed.fa')
+# sys.stderr.write('\t' + str(count_seq_pr_trimmed) + ' sequences survived after primer-trimming\n')
+# log.write('\t...done\n\n')
+# if count_seq_pr_trimmed == str(0):
+# 	sys.exit('Error: primer-removal returned no sequence')
+
 
 ## Annotate the sequences with the taxon and locus names, based on the reference sequences ##
-log.write('#Sequence Annotation#\n')
-sys.stderr.write('Annotating seqs...\n')
-toAnnotate = primer_trimmed_file
-annoFileName = Output_prefix + '_3_annotated.fa'
-LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
-count_seq_annotated = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_annotated.fa')
-count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa')
-sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
-sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
-log.write('\t...done\n\n')
-if count_seq_annotated == str(0):
-	sys.exit('Error: annotation step returned no sequence')
+# log.write('#Sequence Annotation#\n')
+# sys.stderr.write('Annotating seqs...\n')
+# toAnnotate = primer_trimmed_file
+# annoFileName = Output_prefix + '_3_annotated.fa'
+# LocusTaxonCountDict_unclustd = annotateIt(filetoannotate = Output_folder + '/' + toAnnotate, outFile = Output_folder + '/' + annoFileName, Multiplex_perBC_flag = Multiplex_per_barcode, DualBC_flag = Dual_barcode, failsFile = Output_folder + '/' + Output_prefix + '_3_unclassifiable.fa', verbose_level = verbose_level)
+count_seq_annotated = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_annotated.fa')
+count_seq_bc_conflict = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_bc_conflict.fa')
+count_seq_unclassifiable = count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_2_locus_assigned_failed.fa')
+# sys.stderr.write('\t' + str(count_seq_annotated) + ' sequences annotated\n')
+# sys.stderr.write('\t' + str(count_seq_unclassifiable) + ' sequences cannot be classified\n')
+# log.write('\t...done\n\n')
+# if count_seq_annotated == str(0):
+# 	sys.exit('Error: annotation step returned no sequence')
 
-if mode == 2:
-	sys.exit('Done')
+# if mode == 2:
+# 	sys.exit('Done')
 
-## Iterative clustering and chimera-killing ##
-os.chdir(Output_folder) # move into the designated output folder
-LocusTaxonCountDict_clustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annoFileName, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
+# ## Iterative clustering and chimera-killing ##
+# os.chdir(Output_folder) # move into the designated output folder
+# LocusTaxonCountDict_clustd, LocusTaxonCountDict_chimera = IterativeClusterDechimera('../'+annoFileName, clustID, clustID2, clustID3, sizeThreshold, sizeThreshold2)
 
 ## Producing a summary ##
 log.write('#Run Summary#\n\n')
-count_output = open(Output_prefix + '_5_counts.xls', 'w')
+count_output = open(Output_prefix + '_6_counts.xls', 'w')
 count_output.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
 log.write('Total input sequences:\t' + str(count_total_input_sequences) + '\n')
 if mode == 0:
-	count_output.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
-	log.write('Concatemers (multi-locus seqs):\t' + str(count_chimeric_sequences) + '\n')
+	count_output.write('Concatemers (multi-locus seqs):\t' + str(count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_0_chimeras.fa')) + '\n')
+	log.write('Concatemers (multi-locus seqs):\t' + str(count_seq_from_fasta(Output_folder + '/' + Output_prefix + '_0_chimeras.fa')) + '\n')
 
-count_output.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+count_output.write('Sequences with correct barcodes:\t' + str(count_seq_w_bc) + '\n')
 count_output.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
-count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+#count_output.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+if Dual_barcode:
+	count_output.write('Sequences with only F barcode:\t' + str(count_seq_w_onlyF_bc) + '\n')
+	count_output.write('Sequences with only R barcode:\t' + str(count_seq_w_onlyR_bc) + '\n')
+	count_output.write('Sequences with invalid F-F or R-R barcode:\t' + str(count_seq_w_invalid_bc) + '\n')
+	count_output.write('Sequences with invalid F-R or R-F barcode:\t' + str(count_seq_bc_conflict) + '\n')
+	if not Search_ends_only_flag:
+		count_output.write('Sequences with barcode in the middle:\t' + str(count_seq_w_mid_bc) + '\n')
 count_output.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
-count_output.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+count_output.write('Sequences that cannot be assigned to locus:\t' + str(count_seq_unclassifiable) + '\n')
 
-log.write('Sequences with barcodes:\t' + str(count_seq_w_bc) + '\n')
+log.write('Sequences with correct barcodes:\t' + str(count_seq_w_bc) + '\n')
 log.write('Sequences without barcodes:\t' + str(count_seq_wo_bc) + '\n')
-log.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+#log.write('Sequences with too many barcodes:\t' + str(count_seq_w_toomany_bc) + '\n')
+if Dual_barcode:
+	log.write('Sequences with only F barcode:\t' + str(count_seq_w_onlyF_bc) + '\n')
+	log.write('Sequences with only R barcode:\t' + str(count_seq_w_onlyR_bc) + '\n')
+	log.write('Sequences with invalid F-F or R-R barcode:\t' + str(count_seq_w_invalid_bc) + '\n')
+	log.write('Sequences with invalid F-R or R-F barcode:\t' + str(count_seq_bc_conflict) + '\n')
+	if not Search_ends_only_flag:
+		log.write('Sequences with barcode in the middle:\t' + str(count_seq_w_mid_bc) + '\n')
 log.write('Sequences annotated:\t' + str(count_seq_annotated) + '\n')
-log.write('Sequences that cannot be classified:\t' + str(count_seq_unclassifiable) + '\n')
+log.write('Sequences that cannot be assigned to locus:\t' + str(count_seq_unclassifiable) + '\n')
 
 # Get lists of taxa and loci
+# taxon_list = []
+# locus_list = []
+# for taxon_locus in LocusTaxonCountDict_clustd.keys():
+# 	taxon_list.append(taxon_locus[0])
+# 	locus_list.append(taxon_locus[1])
+# taxon_list = set(taxon_list)
+# locus_list = set(locus_list)
+
 taxon_list = []
-locus_list = []
-for taxon_locus in LocusTaxonCountDict_clustd.keys():
-	taxon_list.append(taxon_locus[0])
-	locus_list.append(taxon_locus[1])
-taxon_list = set(taxon_list)
-locus_list = set(locus_list)
+for i in LocusTaxonCountDict_unclustd.keys():
+	taxon_list.append(i[0])
 
 # Output read count per taxon per locus
 log.write("\n**Raw reads per accession per locus**\n")
@@ -1903,6 +2230,8 @@ for each_taxon in set(taxon_list):
 			log.write('0\t')
 	count_output.write('\n')
 	log.write('\n')
+
+sys.exit('done')
 
 # Output clustered seq count
 count_output.write('\n**Final clustered sequences per accession per locus**\n')
