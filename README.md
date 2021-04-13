@@ -19,6 +19,15 @@ PURC allows users to extract and analyze all the copies of a given locus present
 PURC can be ran on Mac OSX and Linux machines. For PCs, you need to additionally install cygwin and Microsoft Visual C++ 2008 (use the 32-bit version). 
 
 ## **Quick Start** ##
+
+### Step 0: Conda environment(Optional) ###
+
+Create a conda environment with required dependencies(Python3, BioPython, BLAST+). Miniconda or Anaconda is required.
+```!shell
+conda env create -f=purc.yml
+conda activate purc
+```
+
 ### Step 1: setup ###
 PURC consists of purc.py (and another variation--purc_recluster.py--that we describe below) and a number of dependencies. We bundled most of the dependencies (cutadapt, muscle and usearch) together in the distribution. To get the dependencies in place, cd to the purc directory, and type: 
 ```
